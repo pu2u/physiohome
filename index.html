@@ -609,6 +609,8 @@ const LANG = {
     clientNamePh: 'z.B. Max M. oder KL-01',
     clientLangLabel: 'Sprache des Klienten',
     createClient: 'Klient erstellen',
+    editClient: 'Klient bearbeiten',
+    editClientBtn: '✏️ Bearbeiten',
     exportShare: '📤 Exportieren & Teilen',
     exportDesc: 'Erstellt eine HTML-Datei mit allen Übungen und Fotos. Der Klient kann sie am Handy öffnen – auch ohne Internet.',
     downloadHtml: '⬇️ HTML-Datei herunterladen',
@@ -653,9 +655,10 @@ const LANG = {
     popupBlocked: 'Bitte Pop-ups für diese Seite erlauben',
     emailSection: 'Per E-Mail',
     emailPh: 'E-Mail des Klienten',
-    emailBtn: '📧 E-Mail öffnen',
-    emailHint: 'Öffnet eine fertige E-Mail (Empfänger & Text ausgefüllt). Hänge nur noch das gespeicherte PDF an und sende.',
+    emailBtn: '📧 Per E-Mail senden',
+    emailHint: 'Erstellt das PDF und öffnet eine fertige E-Mail. Am Handy kannst du das PDF direkt mitschicken; am Surface/PC liegt es danach in den Downloads – bitte an die Mail anhängen (ein automatisches Anhängen erlaubt der Browser leider nicht).',
     emailNoAddr: 'Bitte zuerst eine E-Mail-Adresse eingeben',
+    emailPdfReady: '📎 PDF gespeichert – bitte an die Mail anhängen',
     emailSubject: 'Deine Übungen',
     emailBody: 'Hallo,\n\nim Anhang findest du deine Übungen.\n(Bitte das PDF noch anhängen.)\n\nViele Grüße',
     shareUnavailable: 'Teilen hier nicht verfügbar – Datei gespeichert',
@@ -690,6 +693,8 @@ const LANG = {
     clientNamePh: 'e.g. Max M. or CL-01',
     clientLangLabel: 'Client Language',
     createClient: 'Create Client',
+    editClient: 'Edit client',
+    editClientBtn: '✏️ Edit',
     exportShare: '📤 Export & Share',
     exportDesc: 'Creates an HTML file with all exercises and photos. Your client can open it on their phone – even without internet.',
     downloadHtml: '⬇️ Download HTML File',
@@ -734,9 +739,10 @@ const LANG = {
     popupBlocked: 'Please allow pop-ups for this page',
     emailSection: 'By email',
     emailPh: 'Client email address',
-    emailBtn: '📧 Open email',
-    emailHint: 'Opens a ready-made email (recipient & text filled in). Just attach the saved PDF and send.',
+    emailBtn: '📧 Send by email',
+    emailHint: 'Creates the PDF and opens a ready-made email. On a phone you can send the PDF along directly; on a Surface/PC it is saved to Downloads afterwards – please attach it to the email (browsers don\'t allow auto-attaching).',
     emailNoAddr: 'Please enter an email address first',
+    emailPdfReady: '📎 PDF saved – please attach it to the email',
     emailSubject: 'Your exercises',
     emailBody: 'Hi,\n\nplease find your exercises attached.\n(Please attach the PDF.)\n\nBest regards',
     shareUnavailable: 'Sharing not available here – file saved',
@@ -1125,16 +1131,36 @@ async function doVideos(c) {
   toast(t('videosSaved'));
 }
 
-function doEmail(c) {
+async function doEmail(c) {
   const input = document.getElementById('email-to');
   const addr = (input?.value || '').trim();
   if (!addr) { input?.classList.add('err'); toast(t('emailNoAddr')); return; }
-  // Adresse beim Klienten merken
-  c.email = addr;
-  save();
+  c.email = addr; save();                       // Adresse beim Klienten merken
+
+  // PDF erzeugen (das ist der Anhang)
+  let blob = null;
+  try { blob = buildPdfBlob(c); } catch (e) {}
+
+  // Handy: PDF direkt mit Anhang teilen (Ziel Mail/WhatsApp wählbar) –
+  // der einzige Weg, eine Datei automatisch anzuhängen.
+  if (blob && CAN_SHARE_FILES && IS_MOBILE) {
+    const file = new File([blob], pdfName(c), { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: c.name, text: t('emailBody') });
+        c.lastExport = new Date().toISOString(); save();
+        return;
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+  }
+
+  // Surface/PC: mailto kann keine Datei anhängen -> PDF herunterladen + Entwurf öffnen,
+  // dann das gespeicherte PDF von Hand anhängen.
+  if (blob) { downloadBlob(blob, pdfName(c)); c.lastExport = new Date().toISOString(); save(); }
   const subject = `${c.name} – ${t('emailSubject')}`;
   const body = t('emailBody');
   window.location.href = `mailto:${encodeURIComponent(addr)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (blob) toast(t('emailPdfReady'));
 }
 
 // ===== RENDER =====
@@ -1226,6 +1252,7 @@ function renderClient() {
   <div class="action-bar">
     <button class="btn btn-primary" id="btn-add-ex">${t('addExercise')}</button>
     ${c.exercises.length ? `<button class="btn btn-success" id="btn-export">${t('exportShare')}</button>` : ''}
+    <button class="btn btn-secondary btn-sm" id="btn-edit-client">${t('editClientBtn')}</button>
     <button class="btn btn-danger btn-sm" id="btn-del-client">${t('delClientBtn')}</button>
   </div>`;
 }
@@ -1322,22 +1349,23 @@ function showModal() {
   const m = S.modal;
   let html = '';
   if (m.type === 'new-client') {
+    const ed = m.clientId ? S.clients.find(x => x.id === m.clientId) : null;  // Bearbeiten?
     html = `<div class="modal-overlay" id="moverlay"><div class="modal">
-      <div class="modal-title">👤 ${t('newClient')}</div>
+      <div class="modal-title">👤 ${ed ? t('editClient') : t('newClient')}</div>
       <div class="form-group">
         <label class="form-label">${t('clientNameLabel')}</label>
-        <input class="form-input" id="m-name" type="text" placeholder="${t('clientNamePh')}">
+        <input class="form-input" id="m-name" type="text" placeholder="${t('clientNamePh')}" value="${(ed?.name || '').replace(/"/g,'&quot;')}">
       </div>
       <div class="form-group">
         <label class="form-label">${t('clientLangLabel')}</label>
         <select class="form-select" id="m-lang">
-          <option value="de">Deutsch</option>
-          <option value="en">English</option>
+          <option value="de"${ed?.language === 'de' ? ' selected' : ''}>Deutsch</option>
+          <option value="en"${ed?.language === 'en' ? ' selected' : ''}>English</option>
         </select>
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
-        <button class="btn btn-primary" id="m-ok">${t('createClient')}</button>
+        <button class="btn btn-primary" id="m-ok">${ed ? t('save') : t('createClient')}</button>
       </div>
     </div></div>`;
   } else if (m.type === 'confirm') {
@@ -1369,10 +1397,15 @@ function bindModal() {
       const name = document.getElementById('m-name').value.trim();
       if (!name) { document.getElementById('m-name').classList.add('err'); return; }
       const lang = document.getElementById('m-lang').value;
-      S.clients.push({ id: uid(), name, language: lang, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
+      if (S.modal.clientId) {                          // bestehenden Klienten bearbeiten
+        const c = S.clients.find(x => x.id === S.modal.clientId);
+        if (c) { c.name = name; c.language = lang; }
+      } else {                                         // neuen Klienten anlegen
+        S.clients.push({ id: uid(), name, language: lang, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
+        S.clientId = S.clients.at(-1).id;
+        S.view = 'client';
+      }
       save();
-      S.clientId = S.clients.at(-1).id;
-      S.view = 'client';
       closeModal();
       render();
       toast(t('saved'));
@@ -1454,6 +1487,7 @@ function bind() {
   // Client view
   document.getElementById('btn-add-ex')?.addEventListener('click', () => { clearForm(); S.view = 'ex-form'; render(); });
   document.getElementById('btn-export')?.addEventListener('click', () => { S.view = 'export'; render(); });
+  document.getElementById('btn-edit-client')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('btn-del-client')?.addEventListener('click', () => {
     S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
       const c = client();
