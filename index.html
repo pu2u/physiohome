@@ -646,6 +646,7 @@ const LANG = {
     videoHint: 'Übungs-Videos einzeln teilen oder speichern – dann zusätzlich zum PDF per WhatsApp/Mail schicken. Funktioniert auf iPhone und Android gleich.',
     noVideos: 'Keine Videos in diesem Programm',
     videosSaved: '✓ Videos gespeichert',
+    storageFull: '⚠️ Speicher voll – Video konnte nicht gespeichert werden',
     htmlBtn: '⬇️ Als HTML speichern',
     htmlHint: 'Interaktive Datei mit abspielbaren Videos. Achtung: Öffnet sich auf dem iPhone NICHT – nur für Android-Klienten.',
     emailNote: '💡 Tipp: Schick das PDF als E-Mail-Anhang. So öffnet es sich beim Patienten mit einem Tipp – egal welches Handy.',
@@ -726,6 +727,7 @@ const LANG = {
     videoHint: 'Share or save exercise videos individually – then send them along with the PDF via WhatsApp/email. Works the same on iPhone and Android.',
     noVideos: 'No videos in this program',
     videosSaved: '✓ Videos saved',
+    storageFull: '⚠️ Storage full – video could not be saved',
     htmlBtn: '⬇️ Save as HTML',
     htmlHint: 'Interactive file with playable videos. Warning: does NOT open on iPhone – Android only.',
     emailNote: '💡 Tip: Send the PDF as an email attachment. It opens for the patient with one tap – on any phone.',
@@ -785,18 +787,21 @@ const CAN_SHARE_FILES = (() => {
   try { return !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.txt', { type: 'text/plain' })] })); }
   catch { return false; }
 })();
-// Video-Aufnahme/-Upload vorerst aus (Fotos im Fokus). Auf true setzen, um Video wieder zu aktivieren.
-// Vorhandene Video-Daten werden weiterhin abgespielt – es lassen sich nur keine neuen anlegen.
-const SHOW_VIDEO = false;
+// Video-Aufnahme/-Upload. Videos werden in IndexedDB (großer lokaler Speicher) abgelegt,
+// nicht in localStorage. Auf false setzen, um Video überall auszublenden (Daten bleiben erhalten).
+const SHOW_VIDEO = true;
 
 function buildExportHtml(c) {
   const tl = LANG[c.language || 'de'];
+  const videoNote = (c.language === 'en')
+    ? '🎥 The video for this exercise is sent separately (e.g. via WhatsApp).'
+    : '🎥 Das Video zu dieser Übung erhältst du separat (z. B. per WhatsApp).';
   const rows = c.exercises.map((ex, i) => {
-    const mediaHtml = ex.mediaData
-      ? (ex.mediaType?.startsWith('video')
-          ? `<video src="${ex.mediaData}" controls playsinline style="width:100%;border-radius:12px;max-height:340px;background:#000;display:block"></video>`
-          : `<img src="${ex.mediaData}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:cover;display:block">`)
-      : '';
+    const mediaHtml = ex.mediaType?.startsWith('video')
+      ? `<div style="background:#f4f4f5;border-radius:12px;padding:14px;color:#52525b;font-size:14px">${videoNote}</div>`
+      : (ex.mediaData
+          ? `<img src="${ex.mediaData}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:cover;display:block">`
+          : '');
     const descHtml = ex.description
       ? `<p style="color:#52525b;font-size:15px;line-height:1.65;white-space:pre-wrap;margin:14px 0 0">${ex.description}</p>`
       : '';
@@ -847,8 +852,8 @@ function doDownload(c) {
 function buildPrintHtml(c) {
   const tl = LANG[c.language || 'de'];
   const videoNote = (c.language === 'en')
-    ? '🎥 Video available in the digital (HTML) version'
-    : '🎥 Video nur in der digitalen (HTML) Version';
+    ? '🎥 The video is sent separately (e.g. via WhatsApp)'
+    : '🎥 Das Video kommt separat (z. B. per WhatsApp)';
   const rows = c.exercises.map((ex, i) => {
     let mediaHtml = '';
     if (ex.mediaData && !ex.mediaType?.startsWith('video')) {
@@ -911,6 +916,54 @@ function extFromMime(mimeType) {
   return map[mimeType] || (mimeType?.split('/')[1] || 'mp4');
 }
 
+// Blob -> Daten-URL (für Backup)
+function blobToDataUrl(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+// ===== MEDIEN-SPEICHER (IndexedDB) =====
+// Videos sind zu groß für localStorage (~5 MB). Sie werden daher als Blob in IndexedDB
+// abgelegt (großer, lokaler Speicher – bleibt auf dem Gerät, kein Server). In S.clients
+// steht beim Video nur eine Referenz (mediaRef); der eigentliche Clip liegt hier.
+const MEDIA_DB = 'physiohome', MEDIA_STORE = 'media';
+let _mediaDbP = null;
+function mediaDb() {
+  if (_mediaDbP) return _mediaDbP;
+  _mediaDbP = new Promise((res, rej) => {
+    const rq = indexedDB.open(MEDIA_DB, 1);
+    rq.onupgradeneeded = () => { rq.result.createObjectStore(MEDIA_STORE); };
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+  return _mediaDbP;
+}
+function mediaPut(key, blob) {
+  return mediaDb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(MEDIA_STORE, 'readwrite');
+    tx.objectStore(MEDIA_STORE).put(blob, key);
+    tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+  }));
+}
+function mediaGet(key) {
+  return mediaDb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(MEDIA_STORE, 'readonly');
+    const rq = tx.objectStore(MEDIA_STORE).get(key);
+    rq.onsuccess = () => res(rq.result || null); rq.onerror = () => rej(rq.error);
+  })).catch(() => null);
+}
+function mediaDel(key) {
+  return mediaDb().then(db => new Promise(res => {
+    const tx = db.transaction(MEDIA_STORE, 'readwrite');
+    tx.objectStore(MEDIA_STORE).delete(key);
+    tx.oncomplete = () => res(); tx.onerror = () => res();
+  })).catch(() => {});
+}
+
 // Echtes PDF mit einem Klick erzeugen (kein Druck-Dialog) – via jsPDF
 function buildPdfBlob(c) {
   const { jsPDF } = window.jspdf;
@@ -930,8 +983,8 @@ function buildPdfBlob(c) {
   doc.setDrawColor(228, 228, 231); doc.setLineWidth(1); doc.line(M, y, pageW - M, y); y += 24;
 
   const videoNote = c.language === 'en'
-    ? 'Video: see the digital (HTML) version'
-    : 'Video: siehe digitale (HTML) Version';
+    ? 'Video: sent separately (e.g. via WhatsApp)'
+    : 'Video: kommt separat (z. B. per WhatsApp)';
 
   const PAD = 16, GAP = 12, BADGE = 22;
   const innerW = CW - PAD * 2;
@@ -1045,15 +1098,18 @@ async function doShare(c) {
 // Übungs-Videos einzeln teilen (Handy) oder speichern (Desktop) –
 // damit der Therapeut sie zusätzlich zum PDF per WhatsApp/Mail anhängen kann.
 async function doVideos(c) {
-  const videos = c.exercises.filter(ex => ex.mediaData && ex.mediaType?.startsWith('video'));
+  const videos = c.exercises.filter(ex => ex.mediaType?.startsWith('video') && (ex.mediaRef || ex.mediaData));
   if (!videos.length) { toast(t('noVideos')); return; }
 
   const base = c.name.replace(/[^a-z0-9]/gi, '_');
-  const files = await Promise.all(videos.map(async (ex, i) => {
-    const blob = await dataUrlToBlob(ex.mediaData);
+  let files = await Promise.all(videos.map(async (ex, i) => {
+    const blob = ex.mediaRef ? await mediaGet(ex.mediaRef) : await dataUrlToBlob(ex.mediaData);
+    if (!blob) return null;
     const ext = extFromMime(ex.mediaType);
     return new File([blob], `${base}_${i + 1}.${ext}`, { type: ex.mediaType });
   }));
+  files = files.filter(Boolean);
+  if (!files.length) { toast(t('noVideos')); return; }
 
   if (IS_MOBILE && navigator.canShare && navigator.canShare({ files })) {
     try {
@@ -1150,7 +1206,7 @@ function renderClient() {
           <div class="ex-body">
             <div class="ex-title">${ex.title}</div>
             ${ex.description ? `<div class="ex-desc">${ex.description}</div>` : ''}
-            ${ex.mediaData ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
+            ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
             <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">✏️</button>
@@ -1175,7 +1231,7 @@ function renderClient() {
 }
 
 function renderExForm() {
-  const media = S.pendingMedia?.data;
+  const media = S.pendingMedia ? (S.pendingMedia.data || S.pendingMedia.url) : null;
   const mediaType = S.pendingMedia?.type;
   const mediaHtml = media
     ? `<div class="media-preview">${mediaType?.startsWith('video')
@@ -1342,8 +1398,16 @@ function bind() {
   });
 
   // Backup
-  document.getElementById('btn-backup')?.addEventListener('click', () => {
-    const data = JSON.stringify({ version: 1, date: new Date().toISOString(), clients: S.clients }, null, 2);
+  document.getElementById('btn-backup')?.addEventListener('click', async () => {
+    // Video-Clips aus IndexedDB einsammeln, damit das Backup vollständig (selbst-enthaltend) ist
+    const media = {};
+    for (const c of S.clients) for (const ex of c.exercises) {
+      if (ex.mediaRef && ex.mediaType?.startsWith('video')) {
+        const blob = await mediaGet(ex.mediaRef);
+        if (blob) media[ex.mediaRef] = await blobToDataUrl(blob);
+      }
+    }
+    const data = JSON.stringify({ version: 2, date: new Date().toISOString(), clients: S.clients, media }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1360,7 +1424,13 @@ function bind() {
       try {
         const parsed = JSON.parse(ev.target.result);
         if (!parsed.clients || !Array.isArray(parsed.clients)) throw new Error();
-        S.modal = { type: 'confirm', title: t('restoreAll'), text: t('restoreConfirm'), onOk: () => {
+        S.modal = { type: 'confirm', title: t('restoreAll'), text: t('restoreConfirm'), onOk: async () => {
+          // Video-Clips (falls im Backup enthalten) zurück in IndexedDB schreiben
+          if (parsed.media) {
+            for (const [ref, dataUrl] of Object.entries(parsed.media)) {
+              try { await mediaPut(ref, await dataUrlToBlob(dataUrl)); } catch {}
+            }
+          }
           S.clients = parsed.clients;
           save(); render(); toast(t('restoreOk'));
         }};
@@ -1385,25 +1455,39 @@ function bind() {
   document.getElementById('btn-add-ex')?.addEventListener('click', () => { clearForm(); S.view = 'ex-form'; render(); });
   document.getElementById('btn-export')?.addEventListener('click', () => { S.view = 'export'; render(); });
   document.getElementById('btn-del-client')?.addEventListener('click', () => {
-    S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: () => {
+    S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
+      const c = client();
+      if (c) for (const ex of c.exercises) if (ex.mediaRef) await mediaDel(ex.mediaRef);
       S.clients = S.clients.filter(c => c.id !== S.clientId);
       save(); S.clientId = null; S.view = 'home'; render(); toast(t('deleted'));
     }};
     render();
   });
-  document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', e => {
+  document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
     S.exId = b.dataset.edit;
     const ex = exercise();
     S.pendingTitle = ex?.title || '';
     S.pendingDesc = ex?.description || '';
-    S.pendingMedia = ex?.mediaData ? { data: ex.mediaData, type: ex.mediaType } : null;
+    if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
+      // Video-Clip aus IndexedDB holen und als Vorschau anzeigen (blob:null = unverändert)
+      const blob = await mediaGet(ex.mediaRef);
+      S.pendingMedia = blob
+        ? { type: ex.mediaType, ref: ex.mediaRef, url: URL.createObjectURL(blob), blob: null }
+        : null;
+    } else if (ex?.mediaData) {
+      S.pendingMedia = { data: ex.mediaData, type: ex.mediaType };
+    } else {
+      S.pendingMedia = null;
+    }
     S.view = 'ex-form'; render();
   }));
   document.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
     const eid = b.dataset.del;
-    S.modal = { type:'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: () => {
+    S.modal = { type:'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: async () => {
+      const ex = client().exercises.find(x => x.id === eid);
+      if (ex?.mediaRef) await mediaDel(ex.mediaRef);
       client().exercises = client().exercises.filter(e => e.id !== eid);
       save(); render(); toast(t('deleted'));
     }};
@@ -1417,6 +1501,7 @@ function bind() {
   document.getElementById('media-inp-vid')?.addEventListener('change', e => { const f = e.target.files[0]; if (f) readMedia(f); });
   document.getElementById('btn-rm-media')?.addEventListener('click', () => {
     captureForm();
+    if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
     S.pendingMedia = null;
     render();
   });
@@ -1505,9 +1590,8 @@ function openCamera() {
         mediaRecorder.ondataavailable = e => e.data.size > 0 && recordedChunks.push(e.data);
         mediaRecorder.onstop = () => {
           const blob = new Blob(recordedChunks, { type: 'video/webm' });
-          const reader = new FileReader();
-          reader.onload = ev => { stopStream(); applyMedia(ev.target.result, 'video/webm'); };
-          reader.readAsDataURL(blob);
+          stopStream();
+          applyVideo(blob, 'video/webm');
         };
         mediaRecorder.start();
         recording = true;
@@ -1556,7 +1640,18 @@ function captureForm() {
 
 function applyMedia(dataUrl, mimeType) {
   captureForm();                       // Eingaben bewahren!
+  if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
   S.pendingMedia = { data: dataUrl, type: mimeType };
+  render();
+}
+
+// Video übernehmen: Blob im Speicher halten + Vorschau-URL erzeugen (erst beim Speichern
+// landet der Clip in IndexedDB). ref = vorhandener Schlüssel beim Bearbeiten (sonst null).
+function applyVideo(blob, mimeType) {
+  captureForm();
+  const prevRef = S.pendingMedia?.ref || null;
+  if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
+  S.pendingMedia = { type: mimeType, blob, url: URL.createObjectURL(blob), ref: prevRef };
   render();
 }
 
@@ -1596,30 +1691,45 @@ function readMedia(file) {
   if (file.type && file.type.startsWith('image/')) {
     downscaleImageFile(file).then(d => { if (d) applyMedia(d, 'image/jpeg'); });
   } else {
-    // Video o.Ä.: unverändert einlesen
-    const reader = new FileReader();
-    reader.onload = e => applyMedia(e.target.result, file.type);
-    reader.readAsDataURL(file);
+    // Video o.Ä.: als Blob übernehmen (kommt beim Speichern in IndexedDB)
+    applyVideo(file, file.type || 'video/mp4');
   }
 }
 
 function clearForm() {
+  if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
   S.exId = null; S.pendingMedia = null; S.pendingTitle = ''; S.pendingDesc = '';
 }
 
-function saveEx() {
+async function saveEx() {
   captureForm();
   const title = (S.pendingTitle || '').trim();
   const desc = (S.pendingDesc || '').trim();
   if (!title) { document.getElementById('ex-title')?.classList.add('err'); return; }
   const c = client();
+  const pm = S.pendingMedia;
+
+  // Medien aufbereiten: Bilder als Daten-URL (localStorage), Videos als Blob (IndexedDB)
+  let mediaData = null, mediaType = pm?.type || null, mediaRef = null;
+  if (pm) {
+    if (pm.type?.startsWith('video')) {
+      mediaRef = pm.ref || ('m_' + uid());
+      if (pm.blob) {                       // neuer/geänderter Clip -> in IndexedDB schreiben
+        try { await mediaPut(mediaRef, pm.blob); }
+        catch { toast(t('storageFull')); return; }
+      }
+    } else {
+      mediaData = pm.data || null;
+    }
+  }
+
   if (S.exId) {
     const ex = exercise();
+    if (ex.mediaRef && ex.mediaRef !== mediaRef) await mediaDel(ex.mediaRef); // alten Clip löschen
     ex.title = title; ex.description = desc;
-    ex.mediaData = S.pendingMedia?.data || null;
-    ex.mediaType = S.pendingMedia?.type || null;
+    ex.mediaData = mediaData; ex.mediaType = mediaType; ex.mediaRef = mediaRef;
   } else {
-    c.exercises.push({ id: uid(), title, description: desc, mediaData: S.pendingMedia?.data || null, mediaType: S.pendingMedia?.type || null });
+    c.exercises.push({ id: uid(), title, description: desc, mediaData, mediaType, mediaRef });
   }
   save(); S.view = 'client'; clearForm(); render(); toast(t('saved'));
 }
