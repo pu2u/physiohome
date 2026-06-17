@@ -1,7 +1,7 @@
 // PhysioHome Service Worker – App offline verfügbar machen.
 // WICHTIG: Bei jeder neuen Version (Datei-Änderung + Deploy) die Versionsnummer erhöhen,
 // damit Geräte die aktualisierte App laden.
-const CACHE = 'physiohome-v6';
+const CACHE = 'physiohome-v7';
 
 // App-Shell: das, was die App zum Starten braucht. Klienten-Daten liegen in localStorage
 // und sind vom Cache unabhängig.

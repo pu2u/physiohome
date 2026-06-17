@@ -153,6 +153,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 18px; letter-spacing: -0.02em; color: var(--tx); }
 .modal-text { color: var(--tx2); margin-bottom: 22px; font-size: 14px; line-height: 1.55; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+.lib-pick-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 11px; cursor: pointer; transition: all .15s; }
+.lib-pick-item:hover { border-color: var(--accent); background: var(--surface-2); }
+.lib-pick-cb { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+.lib-pick-thumb { width: 42px; height: 42px; border-radius: 8px; background: var(--surface-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
 
 /* Export */
 .export-block { margin-bottom: 12px; }
@@ -624,6 +628,18 @@ const LANG = {
     backupReminderOld: n => `💾 Letzte Sicherung vor ${n} ${n === 1 ? 'Tag' : 'Tagen'}. Zeit für ein neues Backup.`,
     backupNow: 'Jetzt sichern',
     later: 'Später',
+    libraryTitle: 'Übungs-Bibliothek',
+    libNav: '📚 Übungs-Bibliothek',
+    libEmpty: 'Bibliothek ist leer',
+    libEmptyHint: 'Lege hier Übungen an, die du bei mehreren Klienten wiederverwenden willst.',
+    addExToLibrary: '+ Übung zur Bibliothek',
+    addFromLibrary: '📚 Aus Bibliothek',
+    libPickerTitle: 'Aus Bibliothek hinzufügen',
+    libPickerEmpty: 'Deine Bibliothek ist noch leer. Lege zuerst in der Bibliothek Übungen an.',
+    libAdd: 'Hinzufügen',
+    libAddedN: n => `✓ ${n} ${n === 1 ? 'Übung' : 'Übungen'} hinzugefügt`,
+    toLibrary: 'In Bibliothek speichern',
+    addedToLibrary: '✓ In Bibliothek gespeichert',
     media: 'Foto / Video',
     uploadTxt: 'Klicken oder Datei hierher ziehen',
     uploadHint: 'JPG, PNG, MP4, MOV',
@@ -722,6 +738,18 @@ const LANG = {
     backupReminderOld: n => `💾 Last backup ${n} ${n === 1 ? 'day' : 'days'} ago. Time for a new backup.`,
     backupNow: 'Back up now',
     later: 'Later',
+    libraryTitle: 'Exercise library',
+    libNav: '📚 Exercise library',
+    libEmpty: 'Library is empty',
+    libEmptyHint: 'Create exercises here that you want to reuse across multiple clients.',
+    addExToLibrary: '+ Add exercise to library',
+    addFromLibrary: '📚 From library',
+    libPickerTitle: 'Add from library',
+    libPickerEmpty: 'Your library is empty. Create exercises in the library first.',
+    libAdd: 'Add',
+    libAddedN: n => `✓ ${n} exercise${n !== 1 ? 's' : ''} added`,
+    toLibrary: 'Save to library',
+    addedToLibrary: '✓ Saved to library',
     media: 'Photo / Video',
     uploadTxt: 'Click or drag file here',
     uploadHint: 'JPG, PNG, MP4, MOV',
@@ -793,9 +821,11 @@ const LANG = {
 
 // ===== STATE =====
 const S = {
-  view: 'home',       // home | client | ex-form | export
+  view: 'home',       // home | client | ex-form | export | library
   lang: 'de',
   clients: [],
+  library: [],        // wiederverwendbare Übungen (Bibliothek)
+  exCtx: 'client',    // Kontext des Übungsformulars: 'client' | 'library'
   clientId: null,
   exId: null,
   search: '',
@@ -817,10 +847,12 @@ function t(k, ...a) {
 // ===== DATA =====
 function load() {
   try { S.clients = JSON.parse(localStorage.getItem('ph_clients') || '[]'); } catch {}
+  try { S.library = JSON.parse(localStorage.getItem('ph_library') || '[]'); } catch {}
 }
 function save() {
   try {
     localStorage.setItem('ph_clients', JSON.stringify(S.clients));
+    localStorage.setItem('ph_library', JSON.stringify(S.library));
     document.getElementById('storage-warn')?.style && (document.getElementById('storage-warn').style.display = 'none');
   } catch {
     const w = document.getElementById('storage-warn');
@@ -844,13 +876,17 @@ function backupDue() {
 // Vollständiges Backup (v2, mit Video-Clips aus IndexedDB) als JSON-Datei herunterladen.
 async function doBackup() {
   const media = {};
-  for (const c of S.clients) for (const ex of c.exercises) {
-    if (ex.mediaRef && ex.mediaType?.startsWith('video')) {
+  // Video-Clips aller Klienten UND der Bibliothek einsammeln (selbst-enthaltendes Backup)
+  const allEx = [];
+  for (const c of S.clients) for (const ex of c.exercises) allEx.push(ex);
+  for (const ex of S.library) allEx.push(ex);
+  for (const ex of allEx) {
+    if (ex.mediaRef && ex.mediaType?.startsWith('video') && !media[ex.mediaRef]) {
       const blob = await mediaGet(ex.mediaRef);
       if (blob) media[ex.mediaRef] = await blobToDataUrl(blob);
     }
   }
-  const data = JSON.stringify({ version: 2, date: new Date().toISOString(), clients: S.clients, media }, null, 2);
+  const data = JSON.stringify({ version: 3, date: new Date().toISOString(), clients: S.clients, library: S.library, media }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const dateStr = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `PhysioHome_Backup_${dateStr}.json`);
@@ -1083,6 +1119,24 @@ function mediaDel(key) {
   })).catch(() => {});
 }
 
+// Medien für eine Kopie duplizieren: Bilder sind Daten-URLs (kopieren sich von selbst),
+// Videos liegen in IndexedDB -> Blob unter NEUEM Schlüssel ablegen, damit Kopie und Original
+// unabhängig sind (Löschen des einen darf das andere nicht beschädigen).
+async function dupMedia(ex) {
+  if (ex.mediaType?.startsWith('video') && ex.mediaRef) {
+    const blob = await mediaGet(ex.mediaRef);
+    if (blob) { const ref = 'm_' + uid(); await mediaPut(ref, blob); return { mediaData: null, mediaType: ex.mediaType, mediaRef: ref }; }
+    return { mediaData: null, mediaType: ex.mediaType, mediaRef: null };
+  }
+  return { mediaData: ex.mediaData || null, mediaType: ex.mediaType || null, mediaRef: null };
+}
+
+// Eigenständige Kopie einer Übung (neue ID, dupliziertes Medium) – für Bibliothek <-> Klient.
+async function copyExercise(src) {
+  const m = await dupMedia(src);
+  return { id: uid(), title: src.title, description: src.description || '', sets: src.sets || '', reps: src.reps || '', frequency: src.frequency || '', ...m };
+}
+
 // Echtes PDF mit einem Klick erzeugen (kein Druck-Dialog) – via jsPDF
 function buildPdfBlob(c) {
   const { jsPDF } = window.jspdf;
@@ -1310,7 +1364,7 @@ async function doEmail(c) {
 
 // ===== RENDER =====
 function render() {
-  const views = { home: renderHome, client: renderClient, 'ex-form': renderExForm, export: renderExport };
+  const views = { home: renderHome, client: renderClient, 'ex-form': renderExForm, export: renderExport, library: renderLibrary };
   document.getElementById('app').innerHTML = renderHeader() + `<main class="main">${(views[S.view] || renderHome)()}</main>`;
   if (S.modal) showModal();
   bind();
@@ -1367,6 +1421,9 @@ function renderHome() {
     </div>
     <button class="btn btn-primary" id="btn-new-client">${t('newClient')}</button>
   </div>
+  <div style="margin-bottom:18px">
+    <button class="btn btn-secondary" id="btn-library">${t('libNav')}${S.library.length ? ` · ${S.library.length}` : ''}</button>
+  </div>
   ${S.clients.length ? `<div class="search-wrap">
     <span class="search-ico">🔍</span>
     <input class="search-inp" id="search" type="text" placeholder="${t('searchPh')}" value="${S.search}">
@@ -1395,6 +1452,7 @@ function renderClient() {
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
+            <button class="ico-btn" data-tolib="${ex.id}" title="${t('toLibrary')}">🔖</button>
             <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">✏️</button>
             <button class="ico-btn del" data-del="${ex.id}" title="${t('delete')}">🗑️</button>
           </div>
@@ -1416,9 +1474,43 @@ function renderClient() {
   ${list}
   <div class="action-bar">
     <button class="btn btn-primary" id="btn-add-ex">${t('addExercise')}</button>
+    <button class="btn btn-secondary" id="btn-from-lib">${t('addFromLibrary')}</button>
     ${c.exercises.length ? `<button class="btn btn-success" id="btn-export">${t('exportShare')}</button>` : ''}
     <button class="btn btn-secondary btn-sm" id="btn-edit-client">${t('editClientBtn')}</button>
     <button class="btn btn-danger btn-sm" id="btn-del-client">${t('delClientBtn')}</button>
+  </div>`;
+}
+
+function renderLibrary() {
+  const lib = S.library;
+  const list = lib.length
+    ? `<div class="ex-list">${lib.map((ex, i) => {
+        const meta = exMeta(ex, S.lang);
+        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${p}</span>`).join('')}</div>` : '';
+        return `
+        <div class="ex-card">
+          <div class="ex-num">${i+1}</div>
+          <div class="ex-body">
+            <div class="ex-title">${ex.title}</div>
+            ${metaHtml}
+            ${ex.description ? `<div class="ex-desc">${ex.description}</div>` : ''}
+            ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
+          </div>
+          <div class="ex-actions">
+            <button class="ico-btn" data-libedit="${ex.id}" title="${t('editEx')}">✏️</button>
+            <button class="ico-btn del" data-libdel="${ex.id}" title="${t('delete')}">🗑️</button>
+          </div>
+        </div>`;
+      }).join('')}</div>`
+    : `<div class="empty"><div class="empty-ico">📚</div>
+        <div class="empty-txt">${t('libEmpty')}</div>
+        <div class="empty-hint">${t('libEmptyHint')}</div>
+       </div>`;
+  return `
+  <div class="page-head"><h1>${t('libraryTitle')}</h1><p>${t('exCount', lib.length)}</p></div>
+  ${list}
+  <div class="action-bar">
+    <button class="btn btn-primary" id="btn-add-lib-ex">${t('addExToLibrary')}</button>
   </div>`;
 }
 
@@ -1458,7 +1550,7 @@ function renderExForm() {
         </label>
       </div>`;
   return `
-  <div class="page-head"><h1>${S.exId ? t('editEx') : t('newEx')}</h1></div>
+  <div class="page-head"><h1>${S.exId ? t('editEx') : t('newEx')}</h1>${S.exCtx === 'library' ? `<p>📚 ${t('libraryTitle')}</p>` : ''}</div>
   <div class="card card-pad">
     <div class="form-group">
       <label class="form-label">${t('exName')}</label>
@@ -1560,6 +1652,34 @@ function showModal() {
         <button class="btn btn-danger" id="m-ok">${t('delete')}</button>
       </div>
     </div></div>`;
+  } else if (m.type === 'lib-picker') {
+    const items = S.library;
+    const body = items.length
+      ? `<div style="max-height:50vh;overflow:auto;display:grid;gap:8px;margin:2px 0">
+          ${items.map(ex => {
+            const meta = exMeta(ex, S.lang);
+            const thumb = (ex.mediaData && !ex.mediaType?.startsWith('video'))
+              ? `<img src="${ex.mediaData}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0">`
+              : `<span class="lib-pick-thumb">${ex.mediaType?.startsWith('video') ? '🎥' : '💪'}</span>`;
+            return `<label class="lib-pick-item">
+              <input type="checkbox" value="${ex.id}" class="lib-pick-cb">
+              ${thumb}
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font-weight:600;color:var(--tx);font-size:14px">${ex.title}</span>
+                ${meta.length ? `<span style="display:block;color:var(--tx3);font-size:12px;margin-top:2px">${meta.join(' · ')}</span>` : ''}
+              </span>
+            </label>`;
+          }).join('')}
+        </div>`
+      : `<div class="modal-text">${t('libPickerEmpty')}</div>`;
+    html = `<div class="modal-overlay" id="moverlay"><div class="modal">
+      <div class="modal-title">📚 ${t('libPickerTitle')}</div>
+      ${body}
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
+        ${items.length ? `<button class="btn btn-primary" id="m-ok">${t('libAdd')}</button>` : ''}
+      </div>
+    </div></div>`;
   }
   const el = document.createElement('div');
   el.innerHTML = html;
@@ -1596,6 +1716,17 @@ function bindModal() {
     };
     ok.addEventListener('click', confirm);
     document.getElementById('m-name').addEventListener('keydown', e => e.key === 'Enter' && confirm());
+  } else if (S.modal.type === 'lib-picker') {
+    ok.addEventListener('click', async () => {
+      const ids = Array.from(document.querySelectorAll('.lib-pick-cb:checked')).map(cb => cb.value);
+      if (!ids.length) { closeModal(); return; }
+      const c = client();
+      for (const id of ids) {
+        const src = S.library.find(e => e.id === id);
+        if (src && c) c.exercises.push(await copyExercise(src));
+      }
+      save(); closeModal(); render(); toast(t('libAddedN', ids.length));
+    });
   } else {
     ok.addEventListener('click', () => { S.modal.onOk?.(); closeModal(); });
   }
@@ -1608,8 +1739,9 @@ function bind() {
 
   // Back
   document.getElementById('btn-back')?.addEventListener('click', () => {
-    if (S.view === 'ex-form') { S.view = 'client'; clearForm(); }
+    if (S.view === 'ex-form') { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; }
     else if (S.view === 'export') { S.view = 'client'; }
+    else if (S.view === 'library') { S.view = 'home'; }
     else { S.view = 'home'; S.clientId = null; }
     render();
   });
@@ -1634,6 +1766,7 @@ function bind() {
             }
           }
           S.clients = parsed.clients;
+          if (Array.isArray(parsed.library)) S.library = parsed.library;   // Bibliothek (ab Backup v3)
           setLastBackup();   // es existiert nachweislich eine Sicherung
           save(); render(); toast(t('restoreOk'));
         }};
@@ -1646,6 +1779,7 @@ function bind() {
 
   // Home
   document.getElementById('btn-new-client')?.addEventListener('click', () => { S.modal = {type:'new-client'}; render(); });
+  document.getElementById('btn-library')?.addEventListener('click', () => { S.view = 'library'; render(); });
   document.getElementById('search')?.addEventListener('input', e => {
     S.search = e.target.value;
     render();
@@ -1670,6 +1804,7 @@ function bind() {
   });
   document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
+    S.exCtx = 'client';
     S.exId = b.dataset.edit;
     const ex = exercise();
     S.pendingTitle = ex?.title || '';
@@ -1701,6 +1836,47 @@ function bind() {
     }};
     render();
   }));
+  // Client: aus Bibliothek hinzufügen + einzelne Übung in Bibliothek speichern
+  document.getElementById('btn-from-lib')?.addEventListener('click', () => { S.modal = { type: 'lib-picker' }; render(); });
+  document.querySelectorAll('[data-tolib]').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    const src = client().exercises.find(x => x.id === b.dataset.tolib);
+    if (!src) return;
+    S.library.push(await copyExercise(src));
+    save(); render(); toast(t('addedToLibrary'));
+  }));
+
+  // Library view
+  document.getElementById('btn-add-lib-ex')?.addEventListener('click', () => { clearForm(); S.exCtx = 'library'; S.view = 'ex-form'; render(); });
+  document.querySelectorAll('[data-libedit]').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    S.exCtx = 'library';
+    S.exId = b.dataset.libedit;
+    const ex = S.library.find(x => x.id === S.exId);
+    S.pendingTitle = ex?.title || '';
+    S.pendingDesc = ex?.description || '';
+    S.pendingSets = ex?.sets || '';
+    S.pendingReps = ex?.reps || '';
+    S.pendingFreq = ex?.frequency || '';
+    if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
+      const blob = await mediaGet(ex.mediaRef);
+      S.pendingMedia = blob ? { type: ex.mediaType, ref: ex.mediaRef, url: URL.createObjectURL(blob), blob: null } : null;
+    } else if (ex?.mediaData) {
+      S.pendingMedia = { data: ex.mediaData, type: ex.mediaType };
+    } else { S.pendingMedia = null; }
+    S.view = 'ex-form'; render();
+  }));
+  document.querySelectorAll('[data-libdel]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const eid = b.dataset.libdel;
+    S.modal = { type: 'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: async () => {
+      const ex = S.library.find(x => x.id === eid);
+      if (ex?.mediaRef) await mediaDel(ex.mediaRef);
+      S.library = S.library.filter(e => e.id !== eid);
+      save(); render(); toast(t('deleted'));
+    }};
+    render();
+  }));
 
   // Exercise form
   document.getElementById('media-inp')?.addEventListener('change', e => { const f = e.target.files[0]; if (f) readMedia(f); });
@@ -1720,7 +1896,7 @@ function bind() {
     ua.addEventListener('drop', e => { e.preventDefault(); ua.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) readMedia(f); });
   }
   document.getElementById('btn-save-ex')?.addEventListener('click', saveEx);
-  document.getElementById('btn-cancel-form')?.addEventListener('click', () => { S.view = 'client'; clearForm(); render(); });
+  document.getElementById('btn-cancel-form')?.addEventListener('click', () => { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; render(); });
 
   // Export
   document.getElementById('btn-pdf')?.addEventListener('click', () => doPdf(client()));
@@ -1914,6 +2090,7 @@ function clearForm() {
   if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
   S.exId = null; S.pendingMedia = null; S.pendingTitle = ''; S.pendingDesc = '';
   S.pendingSets = ''; S.pendingReps = ''; S.pendingFreq = '';
+  S.exCtx = 'client';
 }
 
 async function saveEx() {
@@ -1924,7 +2101,7 @@ async function saveEx() {
   const reps = (S.pendingReps || '').trim();
   const frequency = (S.pendingFreq || '').trim();
   if (!title) { document.getElementById('ex-title')?.classList.add('err'); return; }
-  const c = client();
+  const isLib = S.exCtx === 'library';
   const pm = S.pendingMedia;
 
   // Medien aufbereiten: Bilder als Daten-URL (localStorage), Videos als Blob (IndexedDB)
@@ -1942,15 +2119,16 @@ async function saveEx() {
   }
 
   if (S.exId) {
-    const ex = exercise();
+    const ex = isLib ? S.library.find(e => e.id === S.exId) : client().exercises.find(e => e.id === S.exId);
     if (ex.mediaRef && ex.mediaRef !== mediaRef) await mediaDel(ex.mediaRef); // alten Clip löschen
     ex.title = title; ex.description = desc;
     ex.sets = sets; ex.reps = reps; ex.frequency = frequency;
     ex.mediaData = mediaData; ex.mediaType = mediaType; ex.mediaRef = mediaRef;
   } else {
-    c.exercises.push({ id: uid(), title, description: desc, sets, reps, frequency, mediaData, mediaType, mediaRef });
+    const item = { id: uid(), title, description: desc, sets, reps, frequency, mediaData, mediaType, mediaRef };
+    (isLib ? S.library : client().exercises).push(item);
   }
-  save(); S.view = 'client'; clearForm(); render(); toast(t('saved'));
+  save(); S.view = isLib ? 'library' : 'client'; clearForm(); render(); toast(t('saved'));
 }
 
 function toast(msg) {
