@@ -1,7 +1,7 @@
 // PhysioHome Service Worker – App offline verfügbar machen.
 // WICHTIG: Bei jeder neuen Version (Datei-Änderung + Deploy) die Versionsnummer erhöhen,
 // damit Geräte die aktualisierte App laden.
-const CACHE = 'physiohome-v4';
+const CACHE = 'physiohome-v5';
 
 // App-Shell: das, was die App zum Starten braucht. Klienten-Daten liegen in localStorage
 // und sind vom Cache unabhängig.
@@ -31,17 +31,30 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Cache-first: erst aus Cache, sonst Netz (und neu aufnehmen).
+// Cache aktualisieren (Kopie der Antwort ablegen)
+function cachePut(req, res) {
+  const copy = res.clone();
+  caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+  return res;
+}
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then(hit => {
-      if (hit) return hit;
-      return fetch(e.request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
-        return res;
-      }).catch(() => caches.match('./index.html'));
-    })
-  );
+  const url = new URL(e.request.url);
+  const isHTML = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+  const isManifest = url.pathname.endsWith('.webmanifest');
+
+  if (isHTML || isManifest) {
+    // Network-first: immer die frische Version laden (damit Updates zuverlässig ankommen),
+    // bei Offline aus dem Cache liefern.
+    e.respondWith(
+      fetch(e.request).then(res => cachePut(e.request, res))
+        .catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
+    );
+  } else {
+    // Cache-first für statische Dateien (Icons usw.): schnell, sonst aus dem Netz.
+    e.respondWith(
+      caches.match(e.request).then(hit => hit || fetch(e.request).then(res => cachePut(e.request, res)))
+    );
+  }
 });
