@@ -106,6 +106,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 .ico-btn { background: none; border: none; cursor: pointer; padding: 8px; border-radius: 8px; color: var(--tx3); font-size: 15px; transition: all .15s; display: flex; align-items: center; }
 .ico-btn:hover { background: var(--surface-3); color: var(--tx); }
 .ico-btn.del:hover { background: var(--danger-bg); color: var(--danger); }
+.ex-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.ex-chip { font-size: 11.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 7px; letter-spacing: 0; }
+
+/* Ziel-Banner (Klientenansicht) */
+.goal-card { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); border: 1px solid rgba(45,212,191,.28); border-radius: 13px; padding: 13px 16px; margin-bottom: 22px; cursor: pointer; transition: all .15s; }
+.goal-card:hover { border-color: var(--accent); }
+.goal-ico { font-size: 17px; flex-shrink: 0; }
+.goal-text { color: var(--tx); font-size: 14px; font-weight: 550; line-height: 1.45; }
+.goal-empty { color: var(--tx3); font-size: 14px; }
 
 /* Forms */
 .form-group { margin-bottom: 20px; }
@@ -161,6 +170,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 
 /* Storage warning */
 .storage-bar { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 15px; font-size: 13px; color: var(--tx2); margin-bottom: 16px; display: none; line-height: 1.5; }
+
+/* Backup-Erinnerung */
+.backup-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--accent-soft); border: 1px solid rgba(45,212,191,.3); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; font-size: 13px; color: var(--tx); line-height: 1.45; }
+.backup-bar-txt { flex: 1; min-width: 180px; }
+.backup-bar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 @media (max-width: 560px) {
   .main { padding: 18px 14px 60px; }
@@ -595,7 +609,21 @@ const LANG = {
     exName: 'Name der Übung *',
     exNamePh: 'z.B. Kniebeuge, Schulterrotation…',
     desc: 'Beschreibung',
-    descPh: 'Wiederholungen, Dauer, Hinweise…',
+    descPh: 'Hinweise zur Ausführung, worauf achten…',
+    fSets: 'Sätze',
+    fReps: 'Wiederholungen',
+    fFreq: 'Häufigkeit',
+    fSetsPh: 'z.B. 3',
+    fRepsPh: 'z.B. 12',
+    fFreqPh: 'z.B. 2× täglich',
+    goalLabel: '🎯 Ziel des Klienten',
+    goalPh: 'z.B. Wieder schmerzfrei joggen, 30 Min. am Stück',
+    goalAdd: '🎯 Ziel hinzufügen…',
+    goalExport: 'Dein Ziel',
+    backupReminderNever: '💾 Deine Daten sind noch nicht gesichert. Sichere sie jetzt – dann sind sie geschützt, falls dem Gerät etwas passiert.',
+    backupReminderOld: n => `💾 Letzte Sicherung vor ${n} ${n === 1 ? 'Tag' : 'Tagen'}. Zeit für ein neues Backup.`,
+    backupNow: 'Jetzt sichern',
+    later: 'Später',
     media: 'Foto / Video',
     uploadTxt: 'Klicken oder Datei hierher ziehen',
     uploadHint: 'JPG, PNG, MP4, MOV',
@@ -679,7 +707,21 @@ const LANG = {
     exName: 'Exercise Name *',
     exNamePh: 'e.g. Squat, Shoulder Rotation…',
     desc: 'Description',
-    descPh: 'Repetitions, duration, notes…',
+    descPh: 'Notes on form, what to watch for…',
+    fSets: 'Sets',
+    fReps: 'Repetitions',
+    fFreq: 'Frequency',
+    fSetsPh: 'e.g. 3',
+    fRepsPh: 'e.g. 12',
+    fFreqPh: 'e.g. 2× daily',
+    goalLabel: '🎯 Client goal',
+    goalPh: 'e.g. Run pain-free again, 30 min non-stop',
+    goalAdd: '🎯 Add goal…',
+    goalExport: 'Your goal',
+    backupReminderNever: '💾 Your data has not been backed up yet. Back it up now to keep it safe if anything happens to this device.',
+    backupReminderOld: n => `💾 Last backup ${n} ${n === 1 ? 'day' : 'days'} ago. Time for a new backup.`,
+    backupNow: 'Back up now',
+    later: 'Later',
     media: 'Photo / Video',
     uploadTxt: 'Click or drag file here',
     uploadHint: 'JPG, PNG, MP4, MOV',
@@ -760,6 +802,10 @@ const S = {
   pendingMedia: null,  // { data, type } – Arbeitskopie Medium im Formular
   pendingTitle: '',    // Arbeitskopie Titel
   pendingDesc: '',     // Arbeitskopie Beschreibung
+  pendingSets: '',     // Arbeitskopie Sätze
+  pendingReps: '',     // Arbeitskopie Wiederholungen
+  pendingFreq: '',     // Arbeitskopie Häufigkeit
+  backupDismissed: false, // Backup-Erinnerung für diese Sitzung ausgeblendet
   modal: null,
 };
 
@@ -782,10 +828,51 @@ function save() {
   }
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ===== BACKUP-ERINNERUNG =====
+// Zeitpunkt der letzten Sicherung getrennt von den Klientendaten merken.
+function getLastBackup() { try { return localStorage.getItem('ph_lastBackup'); } catch { return null; } }
+function setLastBackup() { try { localStorage.setItem('ph_lastBackup', new Date().toISOString()); } catch {} }
+function daysSince(iso) { return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+// Erinnerung fällig: es gibt Klienten und entweder noch nie gesichert oder >= 7 Tage her.
+function backupDue() {
+  if (!S.clients.length) return false;
+  const last = getLastBackup();
+  if (!last) return true;
+  return daysSince(last) >= 7;
+}
+// Vollständiges Backup (v2, mit Video-Clips aus IndexedDB) als JSON-Datei herunterladen.
+async function doBackup() {
+  const media = {};
+  for (const c of S.clients) for (const ex of c.exercises) {
+    if (ex.mediaRef && ex.mediaType?.startsWith('video')) {
+      const blob = await mediaGet(ex.mediaRef);
+      if (blob) media[ex.mediaRef] = await blobToDataUrl(blob);
+    }
+  }
+  const data = JSON.stringify({ version: 2, date: new Date().toISOString(), clients: S.clients, media }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const dateStr = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `PhysioHome_Backup_${dateStr}.json`);
+  setLastBackup();
+  S.backupDismissed = true;   // nach Sicherung Hinweis ausblenden
+  toast(t('saved'));
+}
 function client() { return S.clients.find(c => c.id === S.clientId); }
 function exercise() { return client()?.exercises.find(e => e.id === S.exId); }
 function initials(name) { return name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0,2) || '?'; }
 function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString(S.lang === 'de' ? 'de-AT' : 'en-GB') : t('never'); }
+
+// Dosierungs-Teile einer Übung als kurze Texte (Sätze/Wdh./Häufigkeit), sprachabhängig.
+// Häufigkeit wird roh angezeigt (z.B. "2× täglich"), die Nutzerin schreibt den ganzen Text.
+function exMeta(ex, lang) {
+  const de = (lang || 'de') === 'de';
+  const parts = [];
+  if (ex.sets) parts.push(`${ex.sets} ${de ? 'Sätze' : 'sets'}`);
+  if (ex.reps) parts.push(`${ex.reps} ${de ? 'Wdh.' : 'reps'}`);
+  if (ex.frequency) parts.push(ex.frequency);
+  return parts;
+}
 
 // ===== EXPORT =====
 const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -808,18 +895,31 @@ function buildExportHtml(c) {
       : (ex.mediaData
           ? `<img src="${ex.mediaData}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:cover;display:block">`
           : '');
-    const descHtml = ex.description
-      ? `<p style="color:#52525b;font-size:15px;line-height:1.65;white-space:pre-wrap;margin:14px 0 0">${ex.description}</p>`
+    const meta = exMeta(ex, c.language);
+    const metaHtml = meta.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${p}</span>`).join('')}</div>`
       : '';
+    const descHtml = ex.description
+      ? `<p style="color:#52525b;font-size:15px;line-height:1.65;white-space:pre-wrap">${ex.description}</p>`
+      : '';
+    const body = [metaHtml, mediaHtml, descHtml].filter(Boolean).join('');
     return `<div style="background:white;border:1px solid #e4e4e7;border-radius:16px;padding:20px;margin-bottom:14px">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:${(mediaHtml||descHtml)?'16px':'0'}">
+  <div style="display:flex;align-items:center;gap:12px;${body ? 'margin-bottom:16px' : ''}">
     <span style="background:#18181b;color:white;min-width:28px;height:28px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">${i+1}</span>
     <span style="font-weight:600;font-size:17px;color:#18181b;letter-spacing:-0.01em">${ex.title}</span>
   </div>
-  ${mediaHtml}
-  ${descHtml}
+  ${body ? `<div style="display:flex;flex-direction:column;gap:14px">${body}</div>` : ''}
 </div>`;
   }).join('');
+
+  // Ziel-Banner (motivierend, oben) – nur wenn ein Ziel gesetzt ist
+  const goalHtml = c.goal
+    ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:14px;padding:14px 16px;margin-bottom:22px">
+    <span style="font-size:18px;line-height:1.25">🎯</span>
+    <div><div style="font-size:12px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${tl.goalExport}</div>
+    <div style="font-size:15px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${c.goal}</div></div>
+  </div>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="${c.language||'de'}">
@@ -835,6 +935,7 @@ function buildExportHtml(c) {
     <div style="font-size:26px;font-weight:700;color:#18181b;letter-spacing:-0.03em">${c.name}</div>
     <div style="color:#71717a;margin-top:6px;font-size:14px">${tl.exercises} · ${fmtDate(new Date().toISOString())}</div>
   </div>
+  ${goalHtml}
   ${rows}
   <div style="text-align:center;color:#a1a1aa;font-size:12px;margin-top:28px">PhysioHome</div>
 </div>
@@ -867,14 +968,25 @@ function buildPrintHtml(c) {
     } else if (ex.mediaType?.startsWith('video')) {
       mediaHtml = `<div style="margin-top:12px;color:#71717a;font-size:13px">${videoNote}</div>`;
     }
+    const meta = exMeta(ex, c.language);
+    const metaHtml = meta.length
+      ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${p}</span>`).join('')}</div>`
+      : '';
     const descHtml = ex.description
       ? `<p style="margin-top:12px;color:#3f3f46;font-size:14px;line-height:1.6;white-space:pre-wrap">${ex.description}</p>`
       : '';
     return `<div class="ex">
       <div class="ex-h"><span class="ex-n">${i+1}</span><span>${ex.title}</span></div>
-      ${mediaHtml}${descHtml}
+      ${metaHtml}${mediaHtml}${descHtml}
     </div>`;
   }).join('');
+  const goalHtml = c.goal
+    ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:13px 15px;margin-bottom:18px">
+      <span style="font-size:17px;line-height:1.2">🎯</span>
+      <div><div style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${tl.goalExport}</div>
+      <div style="font-size:14px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${c.goal}</div></div>
+    </div>`
+    : '';
   return `<!DOCTYPE html><html lang="${c.language||'de'}"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${c.name}</title>
 <style>
@@ -891,6 +1003,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;
 </style></head>
 <body>
 <div class="hd"><h1>${c.name}</h1><div class="sub">${tl.exercises} · ${fmtDate(new Date().toISOString())}</div></div>
+${goalHtml}
 ${rows}
 <div class="ft">PhysioHome</div>
 <script>
@@ -988,6 +1101,23 @@ function buildPdfBlob(c) {
   doc.text(`${tl.exercises} · ${fmtDate(new Date().toISOString())}`, M, y); y += 16;
   doc.setDrawColor(228, 228, 231); doc.setLineWidth(1); doc.line(M, y, pageW - M, y); y += 24;
 
+  // Ziel-Box (motivierend, oben) – nur wenn ein Ziel gesetzt ist
+  if (c.goal) {
+    const goalLabel = c.language === 'en' ? 'YOUR GOAL' : 'DEIN ZIEL';
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    const goalLines = doc.splitTextToSize(c.goal, CW - 28);
+    const boxH = 26 + goalLines.length * 15;
+    if (y + boxH > bottom) { doc.addPage(); y = M; }
+    doc.setFillColor(240, 253, 250); doc.setDrawColor(153, 246, 228); doc.setLineWidth(1);
+    doc.roundedRect(M, y, CW, boxH, 10, 10, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(13, 148, 136);
+    doc.text(goalLabel, M + 14, y + 16);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(19, 78, 74);
+    let gy = y + 32;
+    goalLines.forEach(l => { doc.text(l, M + 14, gy); gy += 15; });
+    y += boxH + 18;
+  }
+
   const videoNote = c.language === 'en'
     ? 'Video: sent separately (e.g. via WhatsApp)'
     : 'Video: kommt separat (z. B. per WhatsApp)';
@@ -1000,6 +1130,11 @@ function buildPdfBlob(c) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
     const titleLines = doc.splitTextToSize(ex.title, innerW - (BADGE + 12));
     const titleH = Math.max(BADGE, titleLines.length * 16);
+
+    // Dosierung (Sätze/Wdh./Häufigkeit) als eine Zeile
+    const metaText = exMeta(ex, c.language).join('   ·   ');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    const metaLines = metaText ? doc.splitTextToSize(metaText, innerW) : [];
 
     let img = null;
     if (ex.mediaData && !ex.mediaType?.startsWith('video')) {
@@ -1017,6 +1152,7 @@ function buildPdfBlob(c) {
     const descLines = ex.description ? doc.splitTextToSize(ex.description, innerW) : [];
 
     let cardH = PAD + titleH;
+    if (metaLines.length) cardH += 8 + metaLines.length * 13;
     if (img) cardH += GAP + img.h;
     else if (isVideo) cardH += GAP + 14;
     if (descLines.length) cardH += GAP + descLines.length * 15;
@@ -1041,6 +1177,15 @@ function buildPdfBlob(c) {
     let ty = cy + 15;
     titleLines.forEach(l => { doc.text(l, M + PAD + BADGE + 12, ty); ty += 16; });
     cy += titleH;
+
+    // Dosierung (Sätze/Wdh./Häufigkeit)
+    if (metaLines.length) {
+      cy += 8;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(13, 148, 136);
+      let my = cy + 9;
+      metaLines.forEach(l => { doc.text(l, M + PAD, my); my += 13; });
+      cy += metaLines.length * 13;
+    }
 
     // Bild / Video-Hinweis
     if (img) {
@@ -1187,6 +1332,16 @@ function renderHeader() {
 
 function renderHome() {
   const filtered = S.clients.filter(c => c.name.toLowerCase().includes(S.search.toLowerCase()));
+  const lastB = getLastBackup();
+  const backupBar = (backupDue() && !S.backupDismissed)
+    ? `<div class="backup-bar">
+        <span class="backup-bar-txt">${lastB ? t('backupReminderOld', daysSince(lastB)) : t('backupReminderNever')}</span>
+        <span class="backup-bar-actions">
+          <button class="btn btn-primary btn-sm" id="btn-backup-now">${t('backupNow')}</button>
+          <button class="ico-btn" id="btn-backup-dismiss" title="${t('later')}">✕</button>
+        </span>
+      </div>`
+    : '';
   const list = filtered.length
     ? filtered.map(c => `<div class="client-card" data-cid="${c.id}">
         <div class="client-info">
@@ -1204,6 +1359,7 @@ function renderHome() {
        </div>`;
   return `
   <div id="storage-warn" class="storage-bar">${t('storageWarn')}</div>
+  ${backupBar}
   <div class="page-head" style="display:flex;justify-content:space-between;align-items:center;gap:14px">
     <div>
       <h1>${t('clients')}</h1>
@@ -1226,11 +1382,15 @@ function renderClient() {
   const c = client();
   if (!c) return '';
   const list = c.exercises.length
-    ? `<div class="ex-list">${c.exercises.map((ex, i) => `
+    ? `<div class="ex-list">${c.exercises.map((ex, i) => {
+        const meta = exMeta(ex, S.lang);
+        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${p}</span>`).join('')}</div>` : '';
+        return `
         <div class="ex-card">
           <div class="ex-num">${i+1}</div>
           <div class="ex-body">
             <div class="ex-title">${ex.title}</div>
+            ${metaHtml}
             ${ex.description ? `<div class="ex-desc">${ex.description}</div>` : ''}
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
@@ -1238,7 +1398,8 @@ function renderClient() {
             <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">✏️</button>
             <button class="ico-btn del" data-del="${ex.id}" title="${t('delete')}">🗑️</button>
           </div>
-        </div>`).join('')}</div>`
+        </div>`;
+      }).join('')}</div>`
     : `<div class="empty"><div class="empty-ico">💪</div>
         <div class="empty-txt">${t('noExercises')}</div>
         <div class="empty-hint">${t('noExercisesHint')}</div>
@@ -1247,6 +1408,10 @@ function renderClient() {
   <div class="page-head">
     <h1>${c.name}</h1>
     <p>${t('exCount', c.exercises.length)}${c.lastExport ? ` · ${t('lastExport')}: ${fmtDate(c.lastExport)}` : ''}</p>
+  </div>
+  <div class="goal-card" id="goal-edit">
+    <span class="goal-ico">🎯</span>
+    ${c.goal ? `<span class="goal-text">${c.goal}</span>` : `<span class="goal-empty">${t('goalAdd')}</span>`}
   </div>
   ${list}
   <div class="action-bar">
@@ -1298,6 +1463,20 @@ function renderExForm() {
     <div class="form-group">
       <label class="form-label">${t('exName')}</label>
       <input class="form-input" id="ex-title" type="text" placeholder="${t('exNamePh')}" value="${(S.pendingTitle||'').replace(/"/g,'&quot;')}">
+    </div>
+    <div class="form-group">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label class="form-label">${t('fSets')}</label>
+          <input class="form-input" id="ex-sets" type="text" inputmode="numeric" placeholder="${t('fSetsPh')}" value="${(S.pendingSets||'').replace(/"/g,'&quot;')}">
+        </div>
+        <div>
+          <label class="form-label">${t('fReps')}</label>
+          <input class="form-input" id="ex-reps" type="text" inputmode="numeric" placeholder="${t('fRepsPh')}" value="${(S.pendingReps||'').replace(/"/g,'&quot;')}">
+        </div>
+      </div>
+      <label class="form-label">${t('fFreq')}</label>
+      <input class="form-input" id="ex-freq" type="text" placeholder="${t('fFreqPh')}" value="${(S.pendingFreq||'').replace(/"/g,'&quot;')}">
     </div>
     <div class="form-group">
       <label class="form-label">${t('desc')}</label>
@@ -1363,6 +1542,10 @@ function showModal() {
           <option value="en"${ed?.language === 'en' ? ' selected' : ''}>English</option>
         </select>
       </div>
+      <div class="form-group">
+        <label class="form-label">${t('goalLabel')}</label>
+        <textarea class="form-textarea" id="m-goal" placeholder="${t('goalPh')}" style="min-height:64px">${ed?.goal || ''}</textarea>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
         <button class="btn btn-primary" id="m-ok">${ed ? t('save') : t('createClient')}</button>
@@ -1397,11 +1580,12 @@ function bindModal() {
       const name = document.getElementById('m-name').value.trim();
       if (!name) { document.getElementById('m-name').classList.add('err'); return; }
       const lang = document.getElementById('m-lang').value;
+      const goal = (document.getElementById('m-goal')?.value || '').trim();
       if (S.modal.clientId) {                          // bestehenden Klienten bearbeiten
         const c = S.clients.find(x => x.id === S.modal.clientId);
-        if (c) { c.name = name; c.language = lang; }
+        if (c) { c.name = name; c.language = lang; c.goal = goal; }
       } else {                                         // neuen Klienten anlegen
-        S.clients.push({ id: uid(), name, language: lang, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
+        S.clients.push({ id: uid(), name, language: lang, goal, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
         S.clientId = S.clients.at(-1).id;
         S.view = 'client';
       }
@@ -1431,24 +1615,9 @@ function bind() {
   });
 
   // Backup
-  document.getElementById('btn-backup')?.addEventListener('click', async () => {
-    // Video-Clips aus IndexedDB einsammeln, damit das Backup vollständig (selbst-enthaltend) ist
-    const media = {};
-    for (const c of S.clients) for (const ex of c.exercises) {
-      if (ex.mediaRef && ex.mediaType?.startsWith('video')) {
-        const blob = await mediaGet(ex.mediaRef);
-        if (blob) media[ex.mediaRef] = await blobToDataUrl(blob);
-      }
-    }
-    const data = JSON.stringify({ version: 2, date: new Date().toISOString(), clients: S.clients, media }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const dateStr = new Date().toISOString().slice(0,10);
-    a.href = url; a.download = `PhysioHome_Backup_${dateStr}.json`; a.click();
-    URL.revokeObjectURL(url);
-    toast(t('saved'));
-  });
+  document.getElementById('btn-backup')?.addEventListener('click', async () => { await doBackup(); render(); });
+  document.getElementById('btn-backup-now')?.addEventListener('click', async () => { await doBackup(); render(); });
+  document.getElementById('btn-backup-dismiss')?.addEventListener('click', () => { S.backupDismissed = true; render(); });
   document.getElementById('restore-inp')?.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1465,6 +1634,7 @@ function bind() {
             }
           }
           S.clients = parsed.clients;
+          setLastBackup();   // es existiert nachweislich eine Sicherung
           save(); render(); toast(t('restoreOk'));
         }};
         render();
@@ -1488,6 +1658,7 @@ function bind() {
   document.getElementById('btn-add-ex')?.addEventListener('click', () => { clearForm(); S.view = 'ex-form'; render(); });
   document.getElementById('btn-export')?.addEventListener('click', () => { S.view = 'export'; render(); });
   document.getElementById('btn-edit-client')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
+  document.getElementById('goal-edit')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('btn-del-client')?.addEventListener('click', () => {
     S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
       const c = client();
@@ -1503,6 +1674,9 @@ function bind() {
     const ex = exercise();
     S.pendingTitle = ex?.title || '';
     S.pendingDesc = ex?.description || '';
+    S.pendingSets = ex?.sets || '';
+    S.pendingReps = ex?.reps || '';
+    S.pendingFreq = ex?.frequency || '';
     if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
       // Video-Clip aus IndexedDB holen und als Vorschau anzeigen (blob:null = unverändert)
       const blob = await mediaGet(ex.mediaRef);
@@ -1668,8 +1842,14 @@ function openCamera() {
 function captureForm() {
   const ti = document.getElementById('ex-title');
   const de = document.getElementById('ex-desc');
+  const se = document.getElementById('ex-sets');
+  const re = document.getElementById('ex-reps');
+  const fr = document.getElementById('ex-freq');
   if (ti) S.pendingTitle = ti.value;
   if (de) S.pendingDesc = de.value;
+  if (se) S.pendingSets = se.value;
+  if (re) S.pendingReps = re.value;
+  if (fr) S.pendingFreq = fr.value;
 }
 
 function applyMedia(dataUrl, mimeType) {
@@ -1733,12 +1913,16 @@ function readMedia(file) {
 function clearForm() {
   if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
   S.exId = null; S.pendingMedia = null; S.pendingTitle = ''; S.pendingDesc = '';
+  S.pendingSets = ''; S.pendingReps = ''; S.pendingFreq = '';
 }
 
 async function saveEx() {
   captureForm();
   const title = (S.pendingTitle || '').trim();
   const desc = (S.pendingDesc || '').trim();
+  const sets = (S.pendingSets || '').trim();
+  const reps = (S.pendingReps || '').trim();
+  const frequency = (S.pendingFreq || '').trim();
   if (!title) { document.getElementById('ex-title')?.classList.add('err'); return; }
   const c = client();
   const pm = S.pendingMedia;
@@ -1761,9 +1945,10 @@ async function saveEx() {
     const ex = exercise();
     if (ex.mediaRef && ex.mediaRef !== mediaRef) await mediaDel(ex.mediaRef); // alten Clip löschen
     ex.title = title; ex.description = desc;
+    ex.sets = sets; ex.reps = reps; ex.frequency = frequency;
     ex.mediaData = mediaData; ex.mediaType = mediaType; ex.mediaRef = mediaRef;
   } else {
-    c.exercises.push({ id: uid(), title, description: desc, mediaData, mediaType, mediaRef });
+    c.exercises.push({ id: uid(), title, description: desc, sets, reps, frequency, mediaData, mediaType, mediaRef });
   }
   save(); S.view = 'client'; clearForm(); render(); toast(t('saved'));
 }
