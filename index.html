@@ -836,6 +836,7 @@ const S = {
   pendingReps: '',     // Arbeitskopie Wiederholungen
   pendingFreq: '',     // Arbeitskopie Häufigkeit
   backupDismissed: false, // Backup-Erinnerung für diese Sitzung ausgeblendet
+  fwd: null,           // gemerktes Ziel fürs Vorwärts-Wischen (zuletzt verlassene Ansicht)
   modal: null,
 };
 
@@ -1363,11 +1364,41 @@ async function doEmail(c) {
 }
 
 // ===== RENDER =====
+let navMove = false; // true nur während Zurück-/Vor-Wischen, damit render() das Vorwärts-Ziel nicht verwirft
 function render() {
+  if (!navMove) S.fwd = null; // jede normale Navigation (Klick) verwirft das gemerkte Vorwärts-Ziel
+  navMove = false;
   const views = { home: renderHome, client: renderClient, 'ex-form': renderExForm, export: renderExport, library: renderLibrary };
   document.getElementById('app').innerHTML = renderHeader() + `<main class="main">${(views[S.view] || renderHome)()}</main>`;
   if (S.modal) showModal();
   bind();
+}
+
+// Zurück-/Vor-Navigation – per Zurück-Knopf und per Wischgeste nutzbar.
+function goBack() {
+  if (S.modal) return;
+  let from = null; // wohin Vorwärts-Wischen zurückführt (beim Verlassen des Formulars bewusst null)
+  if (S.view === 'ex-form') { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; }
+  else if (S.view === 'export') { from = { view: 'export', clientId: S.clientId }; S.view = 'client'; }
+  else if (S.view === 'library') { from = { view: 'library' }; S.view = 'home'; }
+  else if (S.view === 'client') { from = { view: 'client', clientId: S.clientId }; S.view = 'home'; S.clientId = null; }
+  else return; // bereits auf der Startseite – nichts zu tun
+  S.fwd = from;
+  navMove = true;
+  render();
+}
+
+function goForward() {
+  if (S.modal) return;
+  const f = S.fwd;
+  if (!f) return;
+  if (f.view === 'library') { S.view = 'library'; }
+  else if (f.view === 'client') { if (!f.clientId || !S.clients.some(c => c.id === f.clientId)) return; S.clientId = f.clientId; S.view = 'client'; }
+  else if (f.view === 'export') { if (!S.clientId) return; S.view = 'export'; }
+  else return;
+  S.fwd = null;
+  navMove = true;
+  render();
 }
 
 function renderHeader() {
@@ -1560,11 +1591,11 @@ function renderExForm() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
           <label class="form-label">${t('fSets')}</label>
-          <input class="form-input" id="ex-sets" type="text" inputmode="numeric" placeholder="${t('fSetsPh')}" value="${(S.pendingSets||'').replace(/"/g,'&quot;')}">
+          <input class="form-input" id="ex-sets" type="text" placeholder="${t('fSetsPh')}" value="${(S.pendingSets||'').replace(/"/g,'&quot;')}">
         </div>
         <div>
           <label class="form-label">${t('fReps')}</label>
-          <input class="form-input" id="ex-reps" type="text" inputmode="numeric" placeholder="${t('fRepsPh')}" value="${(S.pendingReps||'').replace(/"/g,'&quot;')}">
+          <input class="form-input" id="ex-reps" type="text" placeholder="${t('fRepsPh')}" value="${(S.pendingReps||'').replace(/"/g,'&quot;')}">
         </div>
       </div>
       <label class="form-label">${t('fFreq')}</label>
@@ -1738,13 +1769,7 @@ function bind() {
   document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => { S.lang = b.dataset.lang; render(); }));
 
   // Back
-  document.getElementById('btn-back')?.addEventListener('click', () => {
-    if (S.view === 'ex-form') { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; }
-    else if (S.view === 'export') { S.view = 'client'; }
-    else if (S.view === 'library') { S.view = 'home'; }
-    else { S.view = 'home'; S.clientId = null; }
-    render();
-  });
+  document.getElementById('btn-back')?.addEventListener('click', goBack);
 
   // Backup
   document.getElementById('btn-backup')?.addEventListener('click', async () => { await doBackup(); render(); });
@@ -2137,9 +2162,33 @@ function toast(msg) {
   setTimeout(() => el.classList.remove('show'), 2200);
 }
 
+// Wischgesten am Tablet/Handy: nach rechts wischen = zurück, nach links = vor.
+// Liegt auf #app (bleibt über Re-Renders bestehen); Kamera-Overlay liegt am body und
+// stört daher nicht, Pop-ups werden über S.modal ausgeschlossen.
+function setupSwipe() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  let x0 = null, y0 = null, t0 = 0, multi = false;
+  app.addEventListener('touchstart', e => {
+    if (e.touches.length > 1) { multi = true; return; } // Pinch/Zoom ignorieren
+    multi = false;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+  }, { passive: true });
+  app.addEventListener('touchend', e => {
+    const sx = x0, sy = y0; x0 = null;
+    if (multi || sx === null || S.modal) return;
+    const tt = e.changedTouches[0];
+    const dx = tt.clientX - sx, dy = tt.clientY - sy, dt = Date.now() - t0;
+    // nur eindeutige, waagerechte, zügige Wischer zählen (kein Scrollen/Tippen)
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 800) return;
+    if (dx > 0) goBack(); else goForward();
+  }, { passive: true });
+}
+
 // ===== INIT =====
 load();
 render();
+setupSwipe();
 
 // Service Worker für Offline-Betrieb registrieren (nur über http/https, nicht bei file://)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
