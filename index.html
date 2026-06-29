@@ -677,6 +677,7 @@ const LANG = {
     editEx: 'Übung bearbeiten',
     exportTitle: 'Export',
     storageWarn: '⚠️ Speicher fast voll. Lösche alte Klienten um Platz zu schaffen.',
+    saveFailed: '⚠️ Nicht gespeichert – Speicher voll. Bitte alte Fotos oder Klienten löschen.',
     delClientBtn: '🗑 Klient löschen',
     backupAll: '💾 Alle Daten sichern',
     restoreAll: '📂 Backup wiederherstellen',
@@ -787,6 +788,7 @@ const LANG = {
     editEx: 'Edit Exercise',
     exportTitle: 'Export',
     storageWarn: '⚠️ Storage almost full. Delete old clients to free up space.',
+    saveFailed: '⚠️ Not saved – storage full. Please delete old photos or clients.',
     delClientBtn: '🗑 Delete Client',
     backupAll: '💾 Backup all data',
     restoreAll: '📂 Restore backup',
@@ -854,19 +856,33 @@ function t(k, ...a) {
   return typeof v === 'function' ? v(...a) : (v ?? k);
 }
 
+// HTML-Sonderzeichen entschärfen. Ohne das zerschießen Eingaben wie < > & " in Titel,
+// Beschreibung, Name oder Ziel die Anzeige UND die Export-Dateien (Bug K1). Überall dort
+// verwenden, wo Nutzer-Text in HTML eingesetzt wird (App-Ansicht, HTML-/Print-Export).
+// Das echte PDF (jsPDF, doc.text) braucht das NICHT – dort ist Text kein HTML.
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+}
+
 // ===== DATA =====
 function load() {
   try { S.clients = JSON.parse(localStorage.getItem('ph_clients') || '[]'); } catch {}
   try { S.library = JSON.parse(localStorage.getItem('ph_library') || '[]'); } catch {}
 }
+// Speichert nach localStorage. Gibt true bei Erfolg, false wenn der Speicher voll ist (Quota),
+// damit die Aufrufer KEINE falsche "Gespeichert"-Meldung zeigen (Bug K2).
 function save() {
   try {
     localStorage.setItem('ph_clients', JSON.stringify(S.clients));
     localStorage.setItem('ph_library', JSON.stringify(S.library));
-    document.getElementById('storage-warn')?.style && (document.getElementById('storage-warn').style.display = 'none');
+    const w = document.getElementById('storage-warn');
+    if (w) w.style.display = 'none';
+    return true;
   } catch {
     const w = document.getElementById('storage-warn');
     if (w) w.style.display = 'block';
+    return false;
   }
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -943,16 +959,16 @@ function buildExportHtml(c) {
           : '');
     const meta = exMeta(ex, c.language);
     const metaHtml = meta.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${p}</span>`).join('')}</div>`
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${esc(p)}</span>`).join('')}</div>`
       : '';
     const descHtml = ex.description
-      ? `<p style="color:#52525b;font-size:15px;line-height:1.65;white-space:pre-wrap">${ex.description}</p>`
+      ? `<p style="color:#52525b;font-size:15px;line-height:1.65;white-space:pre-wrap">${esc(ex.description)}</p>`
       : '';
     const body = [metaHtml, mediaHtml, descHtml].filter(Boolean).join('');
     return `<div style="background:white;border:1px solid #e4e4e7;border-radius:16px;padding:20px;margin-bottom:14px">
   <div style="display:flex;align-items:center;gap:12px;${body ? 'margin-bottom:16px' : ''}">
     <span style="background:#18181b;color:white;min-width:28px;height:28px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">${i+1}</span>
-    <span style="font-weight:600;font-size:17px;color:#18181b;letter-spacing:-0.01em">${ex.title}</span>
+    <span style="font-weight:600;font-size:17px;color:#18181b;letter-spacing:-0.01em">${esc(ex.title)}</span>
   </div>
   ${body ? `<div style="display:flex;flex-direction:column;gap:14px">${body}</div>` : ''}
 </div>`;
@@ -963,7 +979,7 @@ function buildExportHtml(c) {
     ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:14px;padding:14px 16px;margin-bottom:22px">
     <span style="font-size:18px;line-height:1.25">🎯</span>
     <div><div style="font-size:12px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${tl.goalExport}</div>
-    <div style="font-size:15px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${c.goal}</div></div>
+    <div style="font-size:15px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${esc(c.goal)}</div></div>
   </div>`
     : '';
 
@@ -972,13 +988,13 @@ function buildExportHtml(c) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${c.name}</title>
+<title>${esc(c.name)}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#fafafa;min-height:100vh;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em}</style>
 </head>
 <body>
 <div style="max-width:600px;margin:0 auto;padding:40px 18px 56px">
   <div style="margin-bottom:28px">
-    <div style="font-size:26px;font-weight:700;color:#18181b;letter-spacing:-0.03em">${c.name}</div>
+    <div style="font-size:26px;font-weight:700;color:#18181b;letter-spacing:-0.03em">${esc(c.name)}</div>
     <div style="color:#71717a;margin-top:6px;font-size:14px">${tl.exercises} · ${fmtDate(new Date().toISOString())}</div>
   </div>
   ${goalHtml}
@@ -1016,13 +1032,13 @@ function buildPrintHtml(c) {
     }
     const meta = exMeta(ex, c.language);
     const metaHtml = meta.length
-      ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${p}</span>`).join('')}</div>`
+      ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${esc(p)}</span>`).join('')}</div>`
       : '';
     const descHtml = ex.description
-      ? `<p style="margin-top:12px;color:#3f3f46;font-size:14px;line-height:1.6;white-space:pre-wrap">${ex.description}</p>`
+      ? `<p style="margin-top:12px;color:#3f3f46;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(ex.description)}</p>`
       : '';
     return `<div class="ex">
-      <div class="ex-h"><span class="ex-n">${i+1}</span><span>${ex.title}</span></div>
+      <div class="ex-h"><span class="ex-n">${i+1}</span><span>${esc(ex.title)}</span></div>
       ${metaHtml}${mediaHtml}${descHtml}
     </div>`;
   }).join('');
@@ -1030,11 +1046,11 @@ function buildPrintHtml(c) {
     ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:13px 15px;margin-bottom:18px">
       <span style="font-size:17px;line-height:1.2">🎯</span>
       <div><div style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${tl.goalExport}</div>
-      <div style="font-size:14px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${c.goal}</div></div>
+      <div style="font-size:14px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${esc(c.goal)}</div></div>
     </div>`
     : '';
   return `<!DOCTYPE html><html lang="${c.language||'de'}"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>${c.name}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.name)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;color:#18181b;padding:32px 28px;max-width:720px;margin:0 auto;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em}
@@ -1048,7 +1064,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;
 @media print{body{padding:0}}
 </style></head>
 <body>
-<div class="hd"><h1>${c.name}</h1><div class="sub">${tl.exercises} · ${fmtDate(new Date().toISOString())}</div></div>
+<div class="hd"><h1>${esc(c.name)}</h1><div class="sub">${tl.exercises} · ${fmtDate(new Date().toISOString())}</div></div>
 ${goalHtml}
 ${rows}
 <div class="ft">PhysioHome</div>
@@ -1439,9 +1455,9 @@ function renderHome() {
   const list = filtered.length
     ? filtered.map(c => `<div class="client-card" data-cid="${c.id}">
         <div class="client-info">
-          <div class="avatar">${initials(c.name)}</div>
+          <div class="avatar">${esc(initials(c.name))}</div>
           <div>
-            <div class="client-name">${c.name}</div>
+            <div class="client-name">${esc(c.name)}</div>
             <div class="client-meta">${t('exCount', c.exercises.length)} · ${t('lastExport')}: ${fmtDate(c.lastExport)}</div>
           </div>
         </div>
@@ -1466,7 +1482,7 @@ function renderHome() {
   </div>
   ${S.clients.length ? `<div class="search-wrap">
     <span class="search-ico">🔍</span>
-    <input class="search-inp" id="search" type="text" placeholder="${t('searchPh')}" value="${S.search}">
+    <input class="search-inp" id="search" type="text" placeholder="${t('searchPh')}" value="${esc(S.search)}">
   </div>` : ''}
   <div class="client-grid">${list}</div>
   <div style="display:flex;gap:8px;justify-content:center;margin-top:28px">
@@ -1481,14 +1497,14 @@ function renderClient() {
   const list = c.exercises.length
     ? `<div class="ex-list">${c.exercises.map((ex, i) => {
         const meta = exMeta(ex, S.lang);
-        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${p}</span>`).join('')}</div>` : '';
+        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${esc(p)}</span>`).join('')}</div>` : '';
         return `
         <div class="ex-card" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
           <div class="ex-num">${i+1}</div>
           <div class="ex-body">
-            <div class="ex-title">${ex.title}</div>
+            <div class="ex-title">${esc(ex.title)}</div>
             ${metaHtml}
-            ${ex.description ? `<div class="ex-desc">${ex.description}</div>` : ''}
+            ${ex.description ? `<div class="ex-desc">${esc(ex.description)}</div>` : ''}
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
@@ -1504,12 +1520,12 @@ function renderClient() {
        </div>`;
   return `
   <div class="page-head">
-    <h1>${c.name}</h1>
+    <h1>${esc(c.name)}</h1>
     <p>${t('exCount', c.exercises.length)}${c.lastExport ? ` · ${t('lastExport')}: ${fmtDate(c.lastExport)}` : ''}</p>
   </div>
   <div class="goal-card" id="goal-edit">
     <span class="goal-ico">🎯</span>
-    ${c.goal ? `<span class="goal-text">${c.goal}</span>` : `<span class="goal-empty">${t('goalAdd')}</span>`}
+    ${c.goal ? `<span class="goal-text">${esc(c.goal)}</span>` : `<span class="goal-empty">${t('goalAdd')}</span>`}
   </div>
   ${list}
   <div class="action-bar">
@@ -1526,14 +1542,14 @@ function renderLibrary() {
   const list = lib.length
     ? `<div class="ex-list">${lib.map((ex, i) => {
         const meta = exMeta(ex, S.lang);
-        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${p}</span>`).join('')}</div>` : '';
+        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${esc(p)}</span>`).join('')}</div>` : '';
         return `
         <div class="ex-card" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
           <div class="ex-num">${i+1}</div>
           <div class="ex-body">
-            <div class="ex-title">${ex.title}</div>
+            <div class="ex-title">${esc(ex.title)}</div>
             ${metaHtml}
-            ${ex.description ? `<div class="ex-desc">${ex.description}</div>` : ''}
+            ${ex.description ? `<div class="ex-desc">${esc(ex.description)}</div>` : ''}
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
@@ -1594,25 +1610,25 @@ function renderExForm() {
   <div class="card card-pad">
     <div class="form-group">
       <label class="form-label">${t('exName')}</label>
-      <input class="form-input" id="ex-title" type="text" placeholder="${t('exNamePh')}" value="${(S.pendingTitle||'').replace(/"/g,'&quot;')}">
+      <input class="form-input" id="ex-title" type="text" placeholder="${t('exNamePh')}" value="${esc(S.pendingTitle)}">
     </div>
     <div class="form-group">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
           <label class="form-label">${t('fSets')}</label>
-          <input class="form-input" id="ex-sets" type="text" placeholder="${t('fSetsPh')}" value="${(S.pendingSets||'').replace(/"/g,'&quot;')}">
+          <input class="form-input" id="ex-sets" type="text" placeholder="${t('fSetsPh')}" value="${esc(S.pendingSets)}">
         </div>
         <div>
           <label class="form-label">${t('fReps')}</label>
-          <input class="form-input" id="ex-reps" type="text" placeholder="${t('fRepsPh')}" value="${(S.pendingReps||'').replace(/"/g,'&quot;')}">
+          <input class="form-input" id="ex-reps" type="text" placeholder="${t('fRepsPh')}" value="${esc(S.pendingReps)}">
         </div>
       </div>
       <label class="form-label">${t('fFreq')}</label>
-      <input class="form-input" id="ex-freq" type="text" placeholder="${t('fFreqPh')}" value="${(S.pendingFreq||'').replace(/"/g,'&quot;')}">
+      <input class="form-input" id="ex-freq" type="text" placeholder="${t('fFreqPh')}" value="${esc(S.pendingFreq)}">
     </div>
     <div class="form-group">
       <label class="form-label">${t('desc')}</label>
-      <textarea class="form-textarea" id="ex-desc" placeholder="${t('descPh')}">${S.pendingDesc||''}</textarea>
+      <textarea class="form-textarea" id="ex-desc" placeholder="${t('descPh')}">${esc(S.pendingDesc)}</textarea>
     </div>
     <div class="form-group">
       <label class="form-label">${t('media')}</label>
@@ -1629,7 +1645,7 @@ function renderExport() {
   const c = client();
   if (!c) return '';
   return `
-  <div class="page-head"><h1>${t('exportTitle')}</h1><p>${c.name}</p></div>
+  <div class="page-head"><h1>${t('exportTitle')}</h1><p>${esc(c.name)}</p></div>
   <div class="card card-pad export-block">
     <div class="section-label">${t('forSending')}</div>
     <button class="btn btn-primary btn-full btn-lg" id="btn-pdf">${t('pdfBtn')}</button>
@@ -1642,7 +1658,7 @@ function renderExport() {
   <div class="card card-pad export-block">
     <div class="section-label">${t('emailSection')}</div>
     <div style="display:flex;gap:8px">
-      <input class="form-input" id="email-to" type="email" placeholder="${t('emailPh')}" value="${c.email||''}" style="flex:1">
+      <input class="form-input" id="email-to" type="email" placeholder="${t('emailPh')}" value="${esc(c.email)}" style="flex:1">
       <button class="btn btn-secondary" id="btn-email" style="white-space:nowrap">${t('emailBtn')}</button>
     </div>
     <p style="color:var(--tx3);font-size:13px;margin-top:10px;line-height:1.55">${t('emailHint')}</p>
@@ -1665,7 +1681,7 @@ function showModal() {
       <div class="modal-title">👤 ${ed ? t('editClient') : t('newClient')}</div>
       <div class="form-group">
         <label class="form-label">${t('clientNameLabel')}</label>
-        <input class="form-input" id="m-name" type="text" placeholder="${t('clientNamePh')}" value="${(ed?.name || '').replace(/"/g,'&quot;')}">
+        <input class="form-input" id="m-name" type="text" placeholder="${t('clientNamePh')}" value="${esc(ed?.name)}">
       </div>
       <div class="form-group">
         <label class="form-label">${t('clientLangLabel')}</label>
@@ -1676,7 +1692,7 @@ function showModal() {
       </div>
       <div class="form-group">
         <label class="form-label">${t('goalLabel')}</label>
-        <textarea class="form-textarea" id="m-goal" placeholder="${t('goalPh')}" style="min-height:64px">${ed?.goal || ''}</textarea>
+        <textarea class="form-textarea" id="m-goal" placeholder="${t('goalPh')}" style="min-height:64px">${esc(ed?.goal)}</textarea>
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
@@ -1705,8 +1721,8 @@ function showModal() {
               <input type="checkbox" value="${ex.id}" class="lib-pick-cb">
               ${thumb}
               <span style="flex:1;min-width:0">
-                <span style="display:block;font-weight:600;color:var(--tx);font-size:14px">${ex.title}</span>
-                ${meta.length ? `<span style="display:block;color:var(--tx3);font-size:12px;margin-top:2px">${meta.join(' · ')}</span>` : ''}
+                <span style="display:block;font-weight:600;color:var(--tx);font-size:14px">${esc(ex.title)}</span>
+                ${meta.length ? `<span style="display:block;color:var(--tx3);font-size:12px;margin-top:2px">${esc(meta.join(' · '))}</span>` : ''}
               </span>
             </label>`;
           }).join('')}
@@ -1749,10 +1765,10 @@ function bindModal() {
         S.clientId = S.clients.at(-1).id;
         S.view = 'client';
       }
-      save();
+      const ok = save();
       closeModal();
       render();
-      toast(t('saved'));
+      toast(ok ? t('saved') : t('saveFailed'));
     };
     ok.addEventListener('click', confirm);
     document.getElementById('m-name').addEventListener('keydown', e => e.key === 'Enter' && confirm());
@@ -1765,7 +1781,7 @@ function bindModal() {
         const src = S.library.find(e => e.id === id);
         if (src && c) c.exercises.push(await copyExercise(src));
       }
-      save(); closeModal(); render(); toast(t('libAddedN', ids.length));
+      const ok = save(); closeModal(); render(); toast(ok ? t('libAddedN', ids.length) : t('saveFailed'));
     });
   } else {
     ok.addEventListener('click', () => { S.modal.onOk?.(); closeModal(); });
@@ -1802,7 +1818,7 @@ function bind() {
           S.clients = parsed.clients;
           if (Array.isArray(parsed.library)) S.library = parsed.library;   // Bibliothek (ab Backup v3)
           setLastBackup();   // es existiert nachweislich eine Sicherung
-          save(); render(); toast(t('restoreOk'));
+          const ok = save(); render(); toast(ok ? t('restoreOk') : t('saveFailed'));
         }};
         render();
       } catch { toast(t('restoreErr')); }
@@ -1877,7 +1893,7 @@ function bind() {
     const src = client().exercises.find(x => x.id === b.dataset.tolib);
     if (!src) return;
     S.library.push(await copyExercise(src));
-    save(); render(); toast(t('addedToLibrary'));
+    const ok = save(); render(); toast(ok ? t('addedToLibrary') : t('saveFailed'));
   }));
 
   // Übungskarte per Doppelklick öffnen (= Bearbeiten). Funktioniert für Klienten- und
@@ -2169,7 +2185,7 @@ async function saveEx() {
     const item = { id: uid(), title, description: desc, sets, reps, frequency, mediaData, mediaType, mediaRef };
     (isLib ? S.library : client().exercises).push(item);
   }
-  save(); S.view = isLib ? 'library' : 'client'; clearForm(); render(); toast(t('saved'));
+  const ok = save(); S.view = isLib ? 'library' : 'client'; clearForm(); render(); toast(ok ? t('saved') : t('saveFailed'));
 }
 
 function toast(msg) {
