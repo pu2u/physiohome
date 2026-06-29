@@ -95,7 +95,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 
 /* Exercise list */
 .ex-list { display: grid; gap: 9px; }
-.ex-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; padding-left: 16px; transition: all .15s; }
+.ex-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; padding-left: 16px; transition: all .15s; cursor: pointer; touch-action: manipulation; }
 .ex-card:hover { border-color: var(--accent); }
 .ex-num { background: var(--accent-soft); color: var(--accent); width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; margin-right: 13px; }
 .ex-body { padding: 15px 0; flex: 1; min-width: 0; }
@@ -106,6 +106,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 .ico-btn { background: none; border: none; cursor: pointer; padding: 8px; border-radius: 8px; color: var(--tx3); font-size: 15px; transition: all .15s; display: flex; align-items: center; }
 .ico-btn:hover { background: var(--surface-3); color: var(--tx); }
 .ico-btn.del:hover { background: var(--danger-bg); color: var(--danger); }
+.ico-btn svg { width: 18px; height: 18px; display: block; }
 .ex-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .ex-chip { font-size: 11.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 7px; letter-spacing: 0; }
 
@@ -840,6 +841,14 @@ const S = {
   modal: null,
 };
 
+// Schlichte, einfarbige SVG-Icons (Strich-Stil). Färben sich über currentColor automatisch
+// in der Button-Farbe – z. B. rot beim Löschen via .ico-btn.del. Größe über .ico-btn svg.
+const ICONS = {
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="3" x2="16" y2="9"/><line x1="13" y1="6" x2="19" y2="6"/></svg>',
+};
+
 function t(k, ...a) {
   const v = LANG[S.lang][k];
   return typeof v === 'function' ? v(...a) : (v ?? k);
@@ -1474,7 +1483,7 @@ function renderClient() {
         const meta = exMeta(ex, S.lang);
         const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${p}</span>`).join('')}</div>` : '';
         return `
-        <div class="ex-card">
+        <div class="ex-card" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
           <div class="ex-num">${i+1}</div>
           <div class="ex-body">
             <div class="ex-title">${ex.title}</div>
@@ -1483,9 +1492,9 @@ function renderClient() {
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
-            <button class="ico-btn" data-tolib="${ex.id}" title="${t('toLibrary')}">🔖</button>
-            <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">✏️</button>
-            <button class="ico-btn del" data-del="${ex.id}" title="${t('delete')}">🗑️</button>
+            <button class="ico-btn" data-tolib="${ex.id}" title="${t('toLibrary')}">${ICONS.bookmark}</button>
+            <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">${ICONS.edit}</button>
+            <button class="ico-btn del" data-del="${ex.id}" title="${t('delete')}">${ICONS.trash}</button>
           </div>
         </div>`;
       }).join('')}</div>`
@@ -1519,7 +1528,7 @@ function renderLibrary() {
         const meta = exMeta(ex, S.lang);
         const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${p}</span>`).join('')}</div>` : '';
         return `
-        <div class="ex-card">
+        <div class="ex-card" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
           <div class="ex-num">${i+1}</div>
           <div class="ex-body">
             <div class="ex-title">${ex.title}</div>
@@ -1528,8 +1537,8 @@ function renderLibrary() {
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
-            <button class="ico-btn" data-libedit="${ex.id}" title="${t('editEx')}">✏️</button>
-            <button class="ico-btn del" data-libdel="${ex.id}" title="${t('delete')}">🗑️</button>
+            <button class="ico-btn" data-libedit="${ex.id}" title="${t('editEx')}">${ICONS.edit}</button>
+            <button class="ico-btn del" data-libdel="${ex.id}" title="${t('delete')}">${ICONS.trash}</button>
           </div>
         </div>`;
       }).join('')}</div>`
@@ -1869,6 +1878,13 @@ function bind() {
     if (!src) return;
     S.library.push(await copyExercise(src));
     save(); render(); toast(t('addedToLibrary'));
+  }));
+
+  // Übungskarte per Doppelklick öffnen (= Bearbeiten). Funktioniert für Klienten- und
+  // Bibliothek-Karten; ein Doppelklick auf ein Aktions-Icon (Bearbeiten/Löschen/Merken) zählt nicht.
+  document.querySelectorAll('.ex-card').forEach(card => card.addEventListener('dblclick', e => {
+    if (e.target.closest('button')) return;
+    card.querySelector('[data-edit],[data-libedit]')?.click();
   }));
 
   // Library view
