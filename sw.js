@@ -1,7 +1,7 @@
 // PhysioHome Service Worker – App offline verfügbar machen.
 // WICHTIG: Bei jeder neuen Version (Datei-Änderung + Deploy) die Versionsnummer erhöhen,
 // damit Geräte die aktualisierte App laden.
-const CACHE = 'physiohome-v11';
+const CACHE = 'physiohome-v12';
 
 // App-Shell: das, was die App zum Starten braucht. Klienten-Daten liegen in localStorage
 // und sind vom Cache unabhängig.
@@ -11,7 +11,9 @@ const ASSETS = [
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
-  './icon-180.png'
+  './icon-180.png',
+  './sg-latin.woff2',
+  './sg-latinext.woff2'
 ];
 
 self.addEventListener('install', e => {

@@ -13,41 +13,57 @@
 <meta name="apple-mobile-web-app-title" content="PhysioHome">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Lokal eingebundene Schrift (kein Google-CDN -> offline-fähig + DSGVO-sauber, keine IP an Google) */
+@font-face{font-family:'Schibsted Grotesk';font-style:normal;font-weight:400 800;font-display:swap;src:url('sg-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Schibsted Grotesk';font-style:normal;font-weight:400 800;font-display:swap;src:url('sg-latinext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+/* Helles Praxis-Theme (Redesign). Variablennamen unverändert, Werte hell. */
 :root {
-  --bg: #0b0b0d;
-  --surface: #161619;
-  --surface-2: #1e1e22;
-  --surface-3: #27272c;
-  --border: #2a2a30;
-  --border-2: #3c3c44;
-  --tx: #f4f4f5;
-  --tx2: #a1a1aa;
-  --tx3: #71717a;
-  --white: #fafafa;
-  --primary: var(--white);
-  --accent: #2dd4bf;
-  --accent-fill: #14b8a6;
-  --accent-soft: rgba(45,212,191,.14);
-  --danger: #f87171;
-  --danger-bg: rgba(248,113,113,.14);
-  --r: 15px;
-  --sh: 0 1px 2px rgba(0,0,0,.4);
-  --sh-md: 0 6px 18px rgba(0,0,0,.45);
-  --sh-lg: 0 18px 44px rgba(0,0,0,.55);
+  --bg: #F4F3EE;
+  --surface: #FFFFFF;
+  --surface-2: #FBFAF7;
+  --surface-3: #F1F0EB;
+  --border: #E7E5DD;
+  --border-2: #D8D6CD;
+  --tx: #1C1E1D;
+  --tx2: #707470;
+  --tx3: #9A9E99;
+  --white: #FFFFFF;
+  --primary: var(--accent);
+  --accent: #0E9080;
+  --accent-strong: #0B7567;
+  --accent-fill: #0E9080;
+  --accent-soft: #EAF5F2;
+  --accent-border: #CDE6E0;
+  --danger: #B5566B;
+  --danger-bg: #F6E9ED;
+  --r: 14px;
+  --sh: 0 1px 3px rgba(28,30,29,.07);
+  --sh-md: 0 12px 40px rgba(28,30,29,.12);
+  --sh-lg: 0 24px 70px rgba(28,30,29,.30);
 }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; background: var(--bg); color: var(--tx); min-height: 100vh; -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#DCDAD1;border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-track{background:transparent}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideRight{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideUp{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes toastIn{from{transform:translateX(-50%) translateY(20px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--tx); min-height: 100vh; -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
 ::placeholder { color: var(--tx3); }
-::selection { background: rgba(250,250,250,.18); }
+::selection { background: rgba(14,144,128,.16); }
 
 /* Header */
-.hdr { background: rgba(11,11,13,.72); backdrop-filter: saturate(160%) blur(14px); border-bottom: 1px solid var(--border); padding: 0 22px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-.hdr-left { display: flex; align-items: center; gap: 8px; }
+.hdr { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 22px; height: 62px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.hdr-left { display: flex; align-items: center; gap: 11px; }
 .back-btn { background: none; border: none; cursor: pointer; color: var(--tx2); font-size: 20px; padding: 6px 9px; border-radius: 9px; line-height: 1; transition: all .15s; }
 .back-btn:hover { background: var(--surface-2); color: var(--tx); }
-.logo { font-size: 17px; font-weight: 600; color: var(--tx); letter-spacing: -0.02em; }
+.logo { font-size: 16px; font-weight: 700; color: var(--tx); letter-spacing: -0.01em; line-height: 1.1; }
 .lang-toggle { display: flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 3px; gap: 2px; }
 .lang-btn { border: none; background: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--tx3); transition: all .15s; }
-.lang-btn.active { background: var(--accent); color: #06231d; }
+.lang-btn.active { background: var(--accent); color: #fff; }
 
 /* Layout */
 .main { max-width: 680px; margin: 0 auto; padding: 30px 20px 72px; }
@@ -60,14 +76,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 /* Buttons */
 .btn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 18px; border-radius: 11px; font-size: 14px; font-weight: 550; cursor: pointer; border: 1px solid transparent; transition: all .15s; font-family: inherit; letter-spacing: -0.01em; }
 .btn:active { transform: scale(.985); }
-.btn-primary { background: var(--white); color: #111114; }
-.btn-primary:hover { background: #ffffff; box-shadow: 0 4px 16px rgba(250,250,250,.14); }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(14,144,128,.25); }
+.btn-primary:hover { background: var(--accent-strong); box-shadow: 0 4px 14px rgba(14,144,128,.3); }
 .btn-secondary { background: var(--surface-2); color: var(--tx); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--surface-3); border-color: var(--border-2); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
 .btn-danger:hover { background: var(--danger-bg); border-color: rgba(248,113,113,.4); }
-.btn-success { background: var(--white); color: #111114; }
-.btn-success:hover { background: #ffffff; box-shadow: 0 4px 16px rgba(250,250,250,.14); }
+.btn-success { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(14,144,128,.25); }
+.btn-success:hover { background: var(--accent-strong); box-shadow: 0 4px 14px rgba(14,144,128,.3); }
 .btn-lg { padding: 15px 24px; font-size: 15px; border-radius: 13px; }
 .btn-sm { padding: 7px 13px; font-size: 13px; border-radius: 9px; }
 .btn-full { width: 100%; justify-content: center; }
@@ -93,6 +109,60 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 .client-arrow { color: var(--tx3); font-size: 18px; transition: transform .15s; }
 .client-card:hover .client-arrow { transform: translateX(3px); color: var(--accent); }
 
+/* === Praxis-Dashboard (Zwei-Spalten-Layout, Redesign) === */
+.app-shell { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.dash { flex: 1 1 auto; display: flex; min-height: 0; }
+.side { width: 312px; flex: 0 0 auto; background: var(--surface-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.side-head { padding: 18px 18px 12px; }
+.side-head-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 13px; }
+.side-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--tx2); }
+.side-count { font-size: 12px; color: var(--tx3); font-weight: 500; }
+.side-search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; transition: border-color .15s; }
+.side-search:focus-within { border-color: var(--accent); }
+.side-search input { border: none; background: none; font-size: 13.5px; width: 100%; color: var(--tx); outline: none; }
+.side-list { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px 10px; min-height: 0; }
+.pat-row { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px; border-radius: 12px; margin-bottom: 2px; transition: background .12s; background: none; border: 1px solid transparent; text-align: left; cursor: pointer; }
+.pat-row:hover { background: var(--surface-3); }
+.pat-row.active { background: var(--surface); box-shadow: var(--sh); border: 1px solid var(--border); }
+.pat-av { width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; }
+.pat-info { flex: 1 1 auto; min-width: 0; }
+.pat-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tx); }
+.pat-cond { font-size: 12px; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.pat-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.side-foot { padding: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px; }
+.dash-main { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 30px 40px 56px; }
+.dash-col { max-width: 780px; margin: 0 auto; animation: fadeIn .35s ease; }
+.detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.detail-id { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.detail-av { width: 54px; height: 54px; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; }
+.detail-name { font-size: 25px; font-weight: 700; letter-spacing: -.02em; color: var(--tx); line-height: 1.1; }
+.detail-meta { font-size: 14px; color: var(--tx2); margin-top: 3px; }
+.detail-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.status-pill { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 20px; white-space: nowrap; }
+.status-sent { color: #4E9A6B; background: #E8F1EB; }
+.status-draft { color: #9A8B5A; background: #F5EFDD; }
+.btn-send { display: inline-flex; align-items: center; gap: 7px; background: var(--accent); color: #fff; font-size: 13.5px; font-weight: 600; padding: 10px 16px; border-radius: 10px; box-shadow: 0 2px 8px rgba(14,144,128,.25); border: none; cursor: pointer; font-family: inherit; transition: background .15s; }
+.btn-send:hover { background: var(--accent-strong); }
+.plan-head { display: flex; align-items: center; justify-content: space-between; margin: 28px 0 14px; gap: 12px; }
+.plan-title-row { display: flex; align-items: baseline; gap: 9px; }
+.plan-title { font-size: 15px; font-weight: 700; color: var(--tx); }
+.plan-count { font-size: 13px; color: var(--tx3); font-weight: 500; }
+.btn-add-ex { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-strong); font-size: 13px; font-weight: 600; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--accent-border); background: var(--accent-soft); cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap; }
+.btn-add-ex:hover { background: #dcefe9; }
+.dash-empty { text-align: center; padding: 80px 20px; }
+.detail-back { display: none; }
+/* Header-Logo (Redesign) */
+.logo-tile { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(14,144,128,.28); flex-shrink: 0; }
+.logo-sub { font-size: 11px; color: var(--tx3); font-weight: 500; line-height: 1.1; }
+@media (max-width: 860px) {
+  .side { width: 100%; border-right: none; }
+  .dash.has-sel .side { display: none; }
+  .dash:not(.has-sel) .dash-main { display: none; }
+  .dash-main { padding: 20px 16px 56px; }
+  .detail-head { flex-wrap: wrap; }
+  .detail-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: var(--tx2); font-size: 14px; font-weight: 600; padding: 4px 0 12px; cursor: pointer; font-family: inherit; }
+}
+
 /* Exercise list */
 .ex-list { display: grid; gap: 9px; }
 .ex-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; padding-left: 16px; transition: all .15s; cursor: pointer; touch-action: manipulation; }
@@ -111,7 +181,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 .ex-chip { font-size: 11.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 7px; letter-spacing: 0; }
 
 /* Ziel-Banner (Klientenansicht) */
-.goal-card { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); border: 1px solid rgba(45,212,191,.28); border-radius: 13px; padding: 13px 16px; margin-bottom: 22px; cursor: pointer; transition: all .15s; }
+.goal-card { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 13px; padding: 13px 16px; margin-bottom: 22px; cursor: pointer; transition: all .15s; }
 .goal-card:hover { border-color: var(--accent); }
 .goal-ico { font-size: 17px; flex-shrink: 0; }
 .goal-text { color: var(--tx); font-size: 14px; font-weight: 550; line-height: 1.45; }
@@ -170,14 +240,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans
 .empty-hint { font-size: 13px; color: var(--tx3); margin-top: 6px; }
 
 /* Toast */
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--white); color: #111114; padding: 11px 20px; border-radius: 11px; font-size: 14px; font-weight: 600; box-shadow: var(--sh-lg); z-index: 300; opacity: 0; transition: all .2s; pointer-events: none; }
+.toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(8px); background: #1C1E1D; color: #fff; padding: 13px 20px; border-radius: 12px; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.25); z-index: 300; opacity: 0; transition: all .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* Storage warning */
 .storage-bar { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 15px; font-size: 13px; color: var(--tx2); margin-bottom: 16px; display: none; line-height: 1.5; }
 
 /* Backup-Erinnerung */
-.backup-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--accent-soft); border: 1px solid rgba(45,212,191,.3); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; font-size: 13px; color: var(--tx); line-height: 1.45; }
+.backup-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; font-size: 13px; color: var(--tx); line-height: 1.45; }
 .backup-bar-txt { flex: 1; min-width: 180px; }
 .backup-bar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
@@ -847,6 +917,15 @@ const ICONS = {
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="3" x2="16" y2="9"/><line x1="13" y1="6" x2="19" y2="6"/></svg>',
 };
 
+// Avatar-Farben (zyklisch nach Klienten-Index) – weiße Initialen. Aus dem Redesign.
+const AVA = ['#0E9080','#3B7EA1','#C2823B','#7A6BB0','#B5566B','#4E9A6B'];
+// Logo-Glyph (aktive Figur) fürs Header-Tile
+const LOGO_GLYPH = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="4.6" r="2.1"></circle><path d="M12 7.4c-1 0-1.7.7-2 1.6l-1.3 4.2a1 1 0 0 0 1.9.6l.9-2.9.5-.1v3.4l-1.9 4.4a1.1 1.1 0 0 0 2 .9l2.4-5.3a1.6 1.6 0 0 0 .1-1.1l-.9-3 .8 1 1.7.7a1 1 0 0 0 .8-1.8l-1.4-.6-1.3-1.5c-.5-.6-1.2-1-2-1Z"></path></svg>';
+// Kleine Inline-Icons fürs Dashboard (eigene Größe, daher nicht aus ICONS)
+const SVG_SEARCH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A9E99" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3-3"></path></svg>';
+const SVG_PLUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>';
+const SVG_SEND = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>';
+
 function t(k, ...a) {
   const v = LANG[S.lang][k];
   return typeof v === 'function' ? v(...a) : (v ?? k);
@@ -1389,8 +1468,14 @@ let navMove = false; // true nur während Zurück-/Vor-Wischen, damit render() d
 function render() {
   if (!navMove) S.fwd = null; // jede normale Navigation (Klick) verwirft das gemerkte Vorwärts-Ziel
   navMove = false;
-  const views = { home: renderHome, client: renderClient, 'ex-form': renderExForm, export: renderExport, library: renderLibrary };
-  document.getElementById('app').innerHTML = renderHeader() + `<main class="main">${(views[S.view] || renderHome)()}</main>`;
+  const app = document.getElementById('app');
+  if (S.view === 'home') {
+    // Dashboard: Header + Zwei-Spalten-Shell (eigenes Voll-Höhen-Layout)
+    app.innerHTML = `<div class="app-shell">${renderHeader()}${renderDashboard()}</div>`;
+  } else {
+    const views = { 'ex-form': renderExForm, export: renderExport, library: renderLibrary };
+    app.innerHTML = renderHeader() + `<main class="main">${(views[S.view] || renderDashboard)()}</main>`;
+  }
   if (S.modal) showModal();
   bind();
 }
@@ -1398,13 +1483,12 @@ function render() {
 // Zurück-/Vor-Navigation – per Zurück-Knopf und per Wischgeste nutzbar.
 function goBack() {
   if (S.modal) return;
-  let from = null; // wohin Vorwärts-Wischen zurückführt (beim Verlassen des Formulars bewusst null)
-  if (S.view === 'ex-form') { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; }
-  else if (S.view === 'export') { from = { view: 'export', clientId: S.clientId }; S.view = 'client'; }
-  else if (S.view === 'library') { from = { view: 'library' }; S.view = 'home'; }
-  else if (S.view === 'client') { from = { view: 'client', clientId: S.clientId }; S.view = 'home'; S.clientId = null; }
-  else return; // bereits auf der Startseite – nichts zu tun
-  S.fwd = from;
+  if (S.view === 'ex-form') { const back = S.exCtx === 'library' ? 'library' : 'home'; clearForm(); S.view = back; }
+  else if (S.view === 'export') { S.view = 'home'; }
+  else if (S.view === 'library') { S.view = 'home'; }
+  else if (S.view === 'home') { if (S.clientId) { S.clientId = null; } else return; } // Handy: Patient abwählen -> Liste
+  else return;
+  S.fwd = null;
   navMove = true;
   render();
 }
@@ -1427,7 +1511,11 @@ function renderHeader() {
   return `<header class="hdr">
   <div class="hdr-left">
     ${showBack ? `<button class="back-btn" id="btn-back">${t('back')}</button>` : ''}
-    <span class="logo">${t('app')}</span>
+    <div class="logo-tile">${LOGO_GLYPH}</div>
+    <div>
+      <div class="logo">${t('app')}</div>
+      <div class="logo-sub">${S.lang==='de'?'Praxis-Dashboard':'Practice dashboard'}</div>
+    </div>
   </div>
   <div class="lang-toggle">
     <button class="lang-btn${S.lang==='de'?' active':''}" data-lang="de">DE</button>
@@ -1436,8 +1524,56 @@ function renderHeader() {
 </header>`;
 }
 
-function renderHome() {
-  const filtered = S.clients.filter(c => c.name.toLowerCase().includes(S.search.toLowerCase()));
+// Dashboard = Shell mit fester Seitenleiste (Patientenliste) links + Detail/Plan rechts.
+function renderDashboard() {
+  const hasSel = !!(S.clientId && client());
+  return `<div class="dash${hasSel ? ' has-sel' : ''}">
+    ${renderSidebar()}
+    <main class="dash-main">${renderClientMain()}</main>
+  </div>`;
+}
+
+function renderSidebar() {
+  const term = S.search.toLowerCase();
+  const filtered = S.clients.filter(c => c.name.toLowerCase().includes(term) || (c.goal || '').toLowerCase().includes(term));
+  const rows = filtered.length
+    ? filtered.map(c => {
+        const idx = S.clients.indexOf(c);
+        const av = AVA[idx % AVA.length];
+        const active = c.id === S.clientId;
+        return `<button class="pat-row${active ? ' active' : ''}" data-cid="${c.id}">
+          <div class="pat-av" style="background:${av}">${esc(initials(c.name))}</div>
+          <div class="pat-info">
+            <div class="pat-name">${esc(c.name)}</div>
+            <div class="pat-cond">${c.goal ? esc(c.goal) : t('exCount', c.exercises.length)}</div>
+          </div>
+          <div class="pat-dot" style="background:${c.lastExport ? '#CFD3CD' : 'var(--accent)'}"></div>
+        </button>`;
+      }).join('')
+    : `<div style="padding:24px 10px;color:var(--tx3);font-size:13px;text-align:center">${S.clients.length ? t('noResults') : t('noClients')}</div>`;
+  return `<aside class="side">
+    <div class="side-head">
+      <div class="side-head-row">
+        <span class="side-title">${S.lang === 'de' ? 'Patient:innen' : 'Clients'}</span>
+        <span class="side-count">${S.clients.length}</span>
+      </div>
+      <div class="side-search">${SVG_SEARCH}<input id="search" type="text" placeholder="${t('searchPh')}" value="${esc(S.search)}"></div>
+    </div>
+    <div class="side-list">${rows}</div>
+    <div class="side-foot">
+      <button class="btn btn-primary btn-sm btn-full" id="btn-new-client">${t('newClient')}</button>
+      <button class="btn btn-secondary btn-sm btn-full" id="btn-library">${t('libNav')}${S.library.length ? ` · ${S.library.length}` : ''}</button>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-secondary btn-sm" id="btn-backup" style="flex:1;justify-content:center">${t('backupAll')}</button>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;flex:1;justify-content:center">${t('restoreAll')}<input type="file" id="restore-inp" accept=".json" style="display:none"></label>
+      </div>
+    </div>
+  </aside>`;
+}
+
+// Rechte Spalte des Dashboards: entweder Auswahl-Hinweis (kein Klient) oder Detail/Plan.
+function renderClientMain() {
+  const warn = `<div id="storage-warn" class="storage-bar">${t('storageWarn')}</div>`;
   const lastB = getLastBackup();
   const backupBar = (backupDue() && !S.backupDismissed)
     ? `<div class="backup-bar">
@@ -1448,49 +1584,20 @@ function renderHome() {
         </span>
       </div>`
     : '';
-  const list = filtered.length
-    ? filtered.map(c => `<div class="client-card" data-cid="${c.id}">
-        <div class="client-info">
-          <div class="avatar">${esc(initials(c.name))}</div>
-          <div>
-            <div class="client-name">${esc(c.name)}</div>
-            <div class="client-meta">${t('exCount', c.exercises.length)} · ${t('lastExport')}: ${fmtDate(c.lastExport)}</div>
-          </div>
-        </div>
-        <span class="client-arrow">→</span>
-      </div>`).join('')
-    : `<div class="empty"><div class="empty-ico">${S.clients.length ? '🔍' : '🧘'}</div>
-        <div class="empty-txt">${S.clients.length ? t('noResults') : t('noClients')}</div>
-        ${!S.clients.length ? `<div class="empty-hint">${t('noClientsHint')}</div>` : ''}
-       </div>`;
-  return `
-  <div id="storage-warn" class="storage-bar">${t('storageWarn')}</div>
-  ${backupBar}
-  <div class="page-head" style="display:flex;justify-content:space-between;align-items:center;gap:14px">
-    <div>
-      <h1>${t('clients')}</h1>
-      <p>${t('clientsHeroSub', S.clients.length)}</p>
-    </div>
-    <button class="btn btn-primary" id="btn-new-client">${t('newClient')}</button>
-  </div>
-  <div style="margin-bottom:18px">
-    <button class="btn btn-secondary" id="btn-library">${t('libNav')}${S.library.length ? ` · ${S.library.length}` : ''}</button>
-  </div>
-  ${S.clients.length ? `<div class="search-wrap">
-    <span class="search-ico">🔍</span>
-    <input class="search-inp" id="search" type="text" placeholder="${t('searchPh')}" value="${esc(S.search)}">
-  </div>` : ''}
-  <div class="client-grid">${list}</div>
-  <div style="display:flex;gap:8px;justify-content:center;margin-top:28px">
-    <button class="btn btn-secondary btn-sm" id="btn-backup">${t('backupAll')}</button>
-    <label class="btn btn-secondary btn-sm" style="cursor:pointer">${t('restoreAll')}<input type="file" id="restore-inp" accept=".json" style="display:none"></label>
-  </div>`;
-}
-
-function renderClient() {
   const c = client();
-  if (!c) return '';
-  const list = c.exercises.length
+  if (!c) {
+    return `<div class="dash-col">${warn}${backupBar}
+      <div class="dash-empty">
+        <div class="empty-ico">${S.clients.length ? '👈' : '🧘'}</div>
+        <div class="empty-txt">${S.clients.length ? (S.lang === 'de' ? 'Wähle links eine:n Patient:in' : 'Select a client on the left') : t('noClients')}</div>
+        ${S.clients.length ? '' : `<div class="empty-hint">${t('noClientsHint')}</div>`}
+      </div></div>`;
+  }
+  const idx = S.clients.indexOf(c);
+  const av = AVA[(idx < 0 ? 0 : idx) % AVA.length];
+  const n = c.exercises.length;
+  const sent = c.lastExport;
+  const list = n
     ? `<div class="ex-list">${c.exercises.map((ex, i) => {
         const meta = exMeta(ex, S.lang);
         const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${esc(p)}</span>`).join('')}</div>` : '';
@@ -1510,27 +1617,41 @@ function renderClient() {
           </div>
         </div>`;
       }).join('')}</div>`
-    : `<div class="empty"><div class="empty-ico">💪</div>
+    : `<div class="empty" style="background:var(--surface-2);border:1.5px dashed var(--border-2);border-radius:16px">
+        <div class="empty-ico">💪</div>
         <div class="empty-txt">${t('noExercises')}</div>
         <div class="empty-hint">${t('noExercisesHint')}</div>
        </div>`;
-  return `
-  <div class="page-head">
-    <h1>${esc(c.name)}</h1>
-    <p>${t('exCount', c.exercises.length)}${c.lastExport ? ` · ${t('lastExport')}: ${fmtDate(c.lastExport)}` : ''}</p>
-  </div>
-  <div class="goal-card" id="goal-edit">
-    <span class="goal-ico">🎯</span>
-    ${c.goal ? `<span class="goal-text">${esc(c.goal)}</span>` : `<span class="goal-empty">${t('goalAdd')}</span>`}
-  </div>
-  ${list}
-  <div class="action-bar">
-    <button class="btn btn-primary" id="btn-add-ex">${t('addExercise')}</button>
-    <button class="btn btn-secondary" id="btn-from-lib">${t('addFromLibrary')}</button>
-    ${c.exercises.length ? `<button class="btn btn-success" id="btn-export">${t('exportShare')}</button>` : ''}
-    <button class="btn btn-secondary btn-sm" id="btn-edit-client">${t('editClientBtn')}</button>
-    <button class="btn btn-danger btn-sm" id="btn-del-client">${t('delClientBtn')}</button>
-  </div>`;
+  const statusLabel = sent ? `${S.lang === 'de' ? 'Gesendet' : 'Sent'} · ${fmtDate(sent)}` : (S.lang === 'de' ? 'Entwurf' : 'Draft');
+  return `<div class="dash-col">${warn}${backupBar}
+    <button class="detail-back" id="btn-deselect">← ${S.lang === 'de' ? 'Liste' : 'List'}</button>
+    <div class="detail-head">
+      <div class="detail-id">
+        <div class="detail-av" style="background:${av}">${esc(initials(c.name))}</div>
+        <div style="min-width:0">
+          <div class="detail-name">${esc(c.name)}</div>
+          <div class="detail-meta">${t('exCount', n)}</div>
+        </div>
+      </div>
+      <div class="detail-actions">
+        <span class="status-pill ${sent ? 'status-sent' : 'status-draft'}">${statusLabel}</span>
+        ${n ? `<button class="btn-send" id="btn-export">${SVG_SEND}${S.lang === 'de' ? 'Senden' : 'Send'}</button>` : ''}
+      </div>
+    </div>
+    <div class="goal-card" id="goal-edit" style="margin-top:18px">
+      <span class="goal-ico">🎯</span>
+      ${c.goal ? `<span class="goal-text">${esc(c.goal)}</span>` : `<span class="goal-empty">${t('goalAdd')}</span>`}
+    </div>
+    <div class="plan-head">
+      <div class="plan-title-row"><span class="plan-title">${t('exercises')}</span><span class="plan-count">${t('exCount', n)}</span></div>
+      <button class="btn-add-ex" id="btn-add-ex">${SVG_PLUS}${t('addExercise').replace(/^\+\s*/, '')}</button>
+    </div>
+    ${list}
+    <div class="action-bar">
+      <button class="btn btn-secondary" id="btn-from-lib">${t('addFromLibrary')}</button>
+      <button class="btn btn-secondary btn-sm" id="btn-edit-client">${t('editClientBtn')}</button>
+      <button class="btn btn-danger btn-sm" id="btn-del-client">${t('delClientBtn')}</button>
+    </div>`;
 }
 
 function renderLibrary() {
@@ -1759,7 +1880,7 @@ function bindModal() {
       } else {                                         // neuen Klienten anlegen
         S.clients.push({ id: uid(), name, language: lang, goal, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
         S.clientId = S.clients.at(-1).id;
-        S.view = 'client';
+        S.view = 'home';
       }
       const ok = save();
       closeModal();
@@ -1832,7 +1953,8 @@ function bind() {
     const s = document.getElementById('search'); // Fokus nach Neuzeichnen zurückholen
     if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
   });
-  document.querySelectorAll('[data-cid]').forEach(el => el.addEventListener('click', () => { S.clientId = el.dataset.cid; S.view = 'client'; render(); }));
+  document.querySelectorAll('[data-cid]').forEach(el => el.addEventListener('click', () => { S.clientId = el.dataset.cid; S.view = 'home'; render(); }));
+  document.getElementById('btn-deselect')?.addEventListener('click', () => { S.clientId = null; render(); });
 
   // Client view
   document.getElementById('btn-add-ex')?.addEventListener('click', () => { clearForm(); S.view = 'ex-form'; render(); });
@@ -1943,7 +2065,7 @@ function bind() {
     render();
   });
   document.getElementById('btn-save-ex')?.addEventListener('click', saveEx);
-  document.getElementById('btn-cancel-form')?.addEventListener('click', () => { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; render(); });
+  document.getElementById('btn-cancel-form')?.addEventListener('click', () => { const back = S.exCtx === 'library' ? 'library' : 'home'; clearForm(); S.view = back; render(); });
 
   // Export
   document.getElementById('btn-pdf')?.addEventListener('click', () => doPdf(client()));
@@ -2175,7 +2297,7 @@ async function saveEx() {
     const item = { id: uid(), title, description: desc, sets, reps, frequency, mediaData, mediaType, mediaRef };
     (isLib ? S.library : client().exercises).push(item);
   }
-  const ok = save(); S.view = isLib ? 'library' : 'client'; clearForm(); render(); toast(ok ? t('saved') : t('saveFailed'));
+  const ok = save(); S.view = isLib ? 'library' : 'home'; clearForm(); render(); toast(ok ? t('saved') : t('saveFailed'));
 }
 
 function toast(msg) {
