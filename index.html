@@ -163,6 +163,22 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
   .detail-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: var(--tx2); font-size: 14px; font-weight: 600; padding: 4px 0 12px; cursor: pointer; font-family: inherit; }
 }
 
+/* Plan-Karten mit Inline-Dosierung + Foto/Video (Redesign Stufe 3) */
+.plan-card { display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; animation: slideUp .3s ease; cursor: pointer; touch-action: manipulation; }
+.plan-card:hover { border-color: var(--accent-border); }
+.plan-thumb { width: 52px; height: 52px; border-radius: 11px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); overflow: hidden; }
+.plan-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.plan-mid { flex: 1 1 auto; min-width: 0; }
+.plan-card-title { font-size: 15px; font-weight: 600; color: var(--tx); }
+.plan-card-desc { font-size: 12.5px; color: var(--tx2); margin-top: 3px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plan-fields { display: flex; align-items: flex-end; gap: 12px; margin-top: 11px; flex-wrap: wrap; }
+.plan-field { display: flex; flex-direction: column; gap: 4px; }
+.plan-field > span { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--tx3); }
+.plan-field input { width: 56px; text-align: center; font-size: 14px; font-weight: 600; padding: 7px 4px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface-2); color: var(--tx); font-family: inherit; outline: none; transition: border-color .15s; }
+.plan-field input:focus { border-color: var(--accent); }
+.plan-field-wide input { width: 116px; text-align: left; padding: 7px 9px; font-weight: 500; }
+.plan-actions { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+
 /* Exercise list */
 .ex-list { display: grid; gap: 9px; }
 .ex-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; padding-left: 16px; transition: all .15s; cursor: pointer; touch-action: manipulation; }
@@ -688,8 +704,11 @@ const LANG = {
     fSets: 'Sätze',
     fReps: 'Wiederholungen',
     fFreq: 'Häufigkeit',
+    fRepsShort: 'Wdh.',
+    fHold: 'Halten',
     fSetsPh: 'z.B. 3',
     fRepsPh: 'z.B. 12',
+    fHoldPh: 'z.B. 30s',
     fFreqPh: 'z.B. 2× täglich',
     goalLabel: '🎯 Ziel des Klienten',
     goalPh: 'z.B. Wieder schmerzfrei joggen, 30 Min. am Stück',
@@ -797,8 +816,11 @@ const LANG = {
     fSets: 'Sets',
     fReps: 'Repetitions',
     fFreq: 'Frequency',
+    fRepsShort: 'Reps',
+    fHold: 'Hold',
     fSetsPh: 'e.g. 3',
     fRepsPh: 'e.g. 12',
+    fHoldPh: 'e.g. 30s',
     fFreqPh: 'e.g. 2× daily',
     goalLabel: '🎯 Client goal',
     goalPh: 'e.g. Run pain-free again, 30 min non-stop',
@@ -903,6 +925,7 @@ const S = {
   pendingDesc: '',     // Arbeitskopie Beschreibung
   pendingSets: '',     // Arbeitskopie Sätze
   pendingReps: '',     // Arbeitskopie Wiederholungen
+  pendingHold: '',     // Arbeitskopie Haltezeit
   pendingFreq: '',     // Arbeitskopie Häufigkeit
   backupDismissed: false, // Backup-Erinnerung für diese Sitzung ausgeblendet
   fwd: null,           // gemerktes Ziel fürs Vorwärts-Wischen (zuletzt verlassene Ansicht)
@@ -925,6 +948,9 @@ const LOGO_GLYPH = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
 const SVG_SEARCH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A9E99" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3-3"></path></svg>';
 const SVG_PLUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>';
 const SVG_SEND = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>';
+// Tile-Icons für Übungskarten ohne Foto (Bewegungs-Figur) bzw. mit Video (Play)
+const SVG_EXTILE = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0E9080" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"></circle><path d="M12 7v6m0 0-3.5 5M12 13l3.5 5M6.5 9.5 12 11l5.5-1.5"></path></svg>';
+const SVG_VIDEO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#0E9080"><path d="M8 5v14l11-7z"></path></svg>';
 
 function t(k, ...a) {
   const v = LANG[S.lang][k];
@@ -1007,6 +1033,7 @@ function exMeta(ex, lang) {
   const parts = [];
   if (ex.sets) parts.push(`${ex.sets} ${de ? 'Sätze' : 'sets'}`);
   if (ex.reps) parts.push(`${ex.reps} ${de ? 'Wdh.' : 'reps'}`);
+  if (ex.hold) parts.push(`${ex.hold} ${de ? 'halten' : 'hold'}`);
   if (ex.frequency) parts.push(ex.frequency);
   return parts;
 }
@@ -1235,7 +1262,7 @@ async function dupMedia(ex) {
 // Eigenständige Kopie einer Übung (neue ID, dupliziertes Medium) – für Bibliothek <-> Klient.
 async function copyExercise(src) {
   const m = await dupMedia(src);
-  return { id: uid(), title: src.title, description: src.description || '', sets: src.sets || '', reps: src.reps || '', frequency: src.frequency || '', ...m };
+  return { id: uid(), title: src.title, description: src.description || '', sets: src.sets || '', reps: src.reps || '', hold: src.hold || '', frequency: src.frequency || '', ...m };
 }
 
 // Echtes PDF mit einem Klick erzeugen (kein Druck-Dialog) – via jsPDF
@@ -1597,22 +1624,27 @@ function renderClientMain() {
   const av = AVA[(idx < 0 ? 0 : idx) % AVA.length];
   const n = c.exercises.length;
   const sent = c.lastExport;
+  const field = (ex, f, label, ph, wide) => `<label class="plan-field${wide ? ' plan-field-wide' : ''}"><span>${label}</span><input type="text" data-exid="${ex.id}" data-exfield="${f}" value="${esc(ex[f])}" placeholder="${ph}"></label>`;
   const list = n
-    ? `<div class="ex-list">${c.exercises.map((ex, i) => {
-        const meta = exMeta(ex, S.lang);
-        const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${esc(p)}</span>`).join('')}</div>` : '';
+    ? `<div class="ex-list">${c.exercises.map((ex) => {
+        const isVid = ex.mediaType?.startsWith('video');
+        const thumb = (ex.mediaData && !isVid) ? `<img src="${ex.mediaData}" alt="">` : (isVid ? SVG_VIDEO : SVG_EXTILE);
         return `
-        <div class="ex-card" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
-          <div class="ex-num">${i+1}</div>
-          <div class="ex-body">
-            <div class="ex-title">${esc(ex.title)}</div>
-            ${metaHtml}
-            ${ex.description ? `<div class="ex-desc">${esc(ex.description)}</div>` : ''}
-            ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
+        <div class="plan-card" data-exid="${ex.id}" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
+          <div class="plan-thumb">${thumb}</div>
+          <div class="plan-mid">
+            <div class="plan-card-title">${esc(ex.title)}</div>
+            ${ex.description ? `<div class="plan-card-desc">${esc(ex.description)}</div>` : ''}
+            <div class="plan-fields">
+              ${field(ex, 'sets', t('fSets'), '–', false)}
+              ${field(ex, 'reps', t('fRepsShort'), '–', false)}
+              ${field(ex, 'hold', t('fHold'), '–', false)}
+              ${field(ex, 'frequency', t('fFreq'), t('fFreqPh'), true)}
+            </div>
           </div>
-          <div class="ex-actions">
-            <button class="ico-btn" data-tolib="${ex.id}" title="${t('toLibrary')}">${ICONS.bookmark}</button>
+          <div class="plan-actions">
             <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">${ICONS.edit}</button>
+            <button class="ico-btn" data-tolib="${ex.id}" title="${t('toLibrary')}">${ICONS.bookmark}</button>
             <button class="ico-btn del" data-del="${ex.id}" title="${t('delete')}">${ICONS.trash}</button>
           </div>
         </div>`;
@@ -1730,7 +1762,7 @@ function renderExForm() {
       <input class="form-input" id="ex-title" type="text" placeholder="${t('exNamePh')}" value="${esc(S.pendingTitle)}">
     </div>
     <div class="form-group">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
           <label class="form-label">${t('fSets')}</label>
           <input class="form-input" id="ex-sets" type="text" placeholder="${t('fSetsPh')}" value="${esc(S.pendingSets)}">
@@ -1738,6 +1770,10 @@ function renderExForm() {
         <div>
           <label class="form-label">${t('fReps')}</label>
           <input class="form-input" id="ex-reps" type="text" placeholder="${t('fRepsPh')}" value="${esc(S.pendingReps)}">
+        </div>
+        <div>
+          <label class="form-label">${t('fHold')}</label>
+          <input class="form-input" id="ex-hold" type="text" placeholder="${t('fHoldPh')}" value="${esc(S.pendingHold)}">
         </div>
       </div>
       <label class="form-label">${t('fFreq')}</label>
@@ -1979,6 +2015,7 @@ function bind() {
     S.pendingDesc = ex?.description || '';
     S.pendingSets = ex?.sets || '';
     S.pendingReps = ex?.reps || '';
+    S.pendingHold = ex?.hold || '';
     S.pendingFreq = ex?.frequency || '';
     if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
       // Video-Clip aus IndexedDB holen und als Vorschau anzeigen (blob:null = unverändert)
@@ -2016,9 +2053,19 @@ function bind() {
 
   // Übungskarte per Doppelklick öffnen (= Bearbeiten). Funktioniert für Klienten- und
   // Bibliothek-Karten; ein Doppelklick auf ein Aktions-Icon (Bearbeiten/Löschen/Merken) zählt nicht.
-  document.querySelectorAll('.ex-card').forEach(card => card.addEventListener('dblclick', e => {
-    if (e.target.closest('button')) return;
+  document.querySelectorAll('.ex-card, .plan-card').forEach(card => card.addEventListener('dblclick', e => {
+    if (e.target.closest('button, input, select, textarea, label')) return;
     card.querySelector('[data-edit],[data-libedit]')?.click();
+  }));
+
+  // Inline-Dosierung auf den Plan-Karten: beim Verlassen des Feldes speichern.
+  // Bewusst KEIN render() -> der Fokus/Cursor bleibt erhalten (Voll-Re-Render würde ihn verlieren).
+  document.querySelectorAll('.plan-field input').forEach(inp => inp.addEventListener('change', () => {
+    const c = client(); if (!c) return;
+    const ex = c.exercises.find(x => x.id === inp.dataset.exid);
+    if (!ex) return;
+    ex[inp.dataset.exfield] = inp.value.trim();
+    if (!save()) toast(t('saveFailed'));
   }));
 
   // Library view
@@ -2032,6 +2079,7 @@ function bind() {
     S.pendingDesc = ex?.description || '';
     S.pendingSets = ex?.sets || '';
     S.pendingReps = ex?.reps || '';
+    S.pendingHold = ex?.hold || '';
     S.pendingFreq = ex?.frequency || '';
     if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
       const blob = await mediaGet(ex.mediaRef);
@@ -2189,11 +2237,13 @@ function captureForm() {
   const de = document.getElementById('ex-desc');
   const se = document.getElementById('ex-sets');
   const re = document.getElementById('ex-reps');
+  const ho = document.getElementById('ex-hold');
   const fr = document.getElementById('ex-freq');
   if (ti) S.pendingTitle = ti.value;
   if (de) S.pendingDesc = de.value;
   if (se) S.pendingSets = se.value;
   if (re) S.pendingReps = re.value;
+  if (ho) S.pendingHold = ho.value;
   if (fr) S.pendingFreq = fr.value;
 }
 
@@ -2258,7 +2308,7 @@ function readMedia(file) {
 function clearForm() {
   if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
   S.exId = null; S.pendingMedia = null; S.pendingTitle = ''; S.pendingDesc = '';
-  S.pendingSets = ''; S.pendingReps = ''; S.pendingFreq = '';
+  S.pendingSets = ''; S.pendingReps = ''; S.pendingHold = ''; S.pendingFreq = '';
   S.exCtx = 'client';
 }
 
@@ -2268,6 +2318,7 @@ async function saveEx() {
   const desc = (S.pendingDesc || '').trim();
   const sets = (S.pendingSets || '').trim();
   const reps = (S.pendingReps || '').trim();
+  const hold = (S.pendingHold || '').trim();
   const frequency = (S.pendingFreq || '').trim();
   if (!title) { document.getElementById('ex-title')?.classList.add('err'); return; }
   const isLib = S.exCtx === 'library';
@@ -2291,10 +2342,10 @@ async function saveEx() {
     const ex = isLib ? S.library.find(e => e.id === S.exId) : client().exercises.find(e => e.id === S.exId);
     if (ex.mediaRef && ex.mediaRef !== mediaRef) await mediaDel(ex.mediaRef); // alten Clip löschen
     ex.title = title; ex.description = desc;
-    ex.sets = sets; ex.reps = reps; ex.frequency = frequency;
+    ex.sets = sets; ex.reps = reps; ex.hold = hold; ex.frequency = frequency;
     ex.mediaData = mediaData; ex.mediaType = mediaType; ex.mediaRef = mediaRef;
   } else {
-    const item = { id: uid(), title, description: desc, sets, reps, frequency, mediaData, mediaType, mediaRef };
+    const item = { id: uid(), title, description: desc, sets, reps, hold, frequency, mediaData, mediaType, mediaRef };
     (isLib ? S.library : client().exercises).push(item);
   }
   const ok = save(); S.view = isLib ? 'library' : 'home'; clearForm(); render(); toast(ok ? t('saved') : t('saveFailed'));
