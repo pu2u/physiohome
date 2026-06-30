@@ -642,8 +642,6 @@ const LANG = {
     toLibrary: 'In Bibliothek speichern',
     addedToLibrary: '✓ In Bibliothek gespeichert',
     media: 'Foto / Video',
-    uploadTxt: 'Klicken oder Datei hierher ziehen',
-    uploadHint: 'JPG, PNG, MP4, MOV',
     changeMedia: '🔄 Ändern',
     removeMedia: '✕ Entfernen',
     save: '💾 Speichern',
@@ -753,8 +751,6 @@ const LANG = {
     toLibrary: 'Save to library',
     addedToLibrary: '✓ Saved to library',
     media: 'Photo / Video',
-    uploadTxt: 'Click or drag file here',
-    uploadHint: 'JPG, PNG, MP4, MOV',
     changeMedia: '🔄 Change',
     removeMedia: '✕ Remove',
     save: '💾 Save',
@@ -955,7 +951,7 @@ function buildExportHtml(c) {
     const mediaHtml = ex.mediaType?.startsWith('video')
       ? `<div style="background:#f4f4f5;border-radius:12px;padding:14px;color:#52525b;font-size:14px">${videoNote}</div>`
       : (ex.mediaData
-          ? `<img src="${ex.mediaData}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:cover;display:block">`
+          ? `<img src="${ex.mediaData}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:contain;display:block">`
           : '');
     const meta = exMeta(ex, c.language);
     const metaHtml = meta.length
@@ -1587,14 +1583,14 @@ function renderExForm() {
           ? (SHOW_VIDEO
               ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
               <label class="btn btn-primary btn-full" style="cursor:pointer;justify-content:center;padding:14px">
-                📷 Foto<input type="file" id="media-inp-cam" accept="image/*" capture="environment" style="display:none">
+                📷 ${S.lang==='de'?'Foto':'Photo'}<input type="file" id="media-inp-cam" accept="image/*" capture="environment" style="display:none">
               </label>
               <label class="btn btn-primary btn-full" style="cursor:pointer;justify-content:center;padding:14px">
                 🎥 Video<input type="file" id="media-inp-vid" accept="video/*" capture="environment" style="display:none">
               </label>
              </div>`
               : `<label class="btn btn-primary btn-full" style="cursor:pointer;justify-content:center;padding:14px">
-                📷 Foto<input type="file" id="media-inp-cam" accept="image/*" capture="environment" style="display:none">
+                📷 ${S.lang==='de'?'Foto':'Photo'}<input type="file" id="media-inp-cam" accept="image/*" capture="environment" style="display:none">
               </label>`)
           : `<button class="btn btn-primary btn-full" id="btn-open-cam" style="padding:14px">
               📷 ${S.lang==='de'?'Kamera':'Camera'}
@@ -1946,12 +1942,6 @@ function bind() {
     S.pendingMedia = null;
     render();
   });
-  const ua = document.getElementById('upload-area');
-  if (ua) {
-    ua.addEventListener('dragover', e => { e.preventDefault(); ua.classList.add('drag-over'); });
-    ua.addEventListener('dragleave', () => ua.classList.remove('drag-over'));
-    ua.addEventListener('drop', e => { e.preventDefault(); ua.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) readMedia(f); });
-  }
   document.getElementById('btn-save-ex')?.addEventListener('click', saveEx);
   document.getElementById('btn-cancel-form')?.addEventListener('click', () => { const back = S.exCtx === 'library' ? 'library' : 'client'; clearForm(); S.view = back; render(); });
 
