@@ -201,6 +201,39 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .drawer-added { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: #4E9A6B; background: #E8F1EB; padding: 8px 12px; border-radius: 9px; white-space: nowrap; }
 @media (max-width: 560px) { .drawer { width: 100%; max-width: 100%; } }
 
+/* Senden-Modal mit Handy-Vorschau (Redesign Stufe 5) */
+.send-overlay { position: fixed; inset: 0; background: rgba(28,30,29,.42); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fadeIn .2s ease; }
+.send-dialog { display: flex; background: var(--surface); border-radius: 20px; overflow: hidden; max-width: 790px; width: 100%; box-shadow: var(--sh-lg); animation: pop .26s cubic-bezier(.22,1,.36,1); max-height: calc(100vh - 48px); }
+.send-phone { flex: 0 0 auto; width: 340px; background: #EDEBE4; display: flex; align-items: center; justify-content: center; padding: 30px 0; }
+.phone-frame { width: 268px; height: 540px; background: #15110F; border-radius: 38px; padding: 9px; box-shadow: 0 18px 44px rgba(0,0,0,.32); }
+.phone-screen { width: 100%; height: 100%; background: #F4F3EE; border-radius: 30px; overflow: hidden; display: flex; flex-direction: column; }
+.phone-head { background: var(--accent); padding: 26px 18px 18px; color: #fff; flex: 0 0 auto; }
+.phone-head .pl { font-size: 11px; font-weight: 600; opacity: .85; letter-spacing: .03em; }
+.phone-head .pt { font-size: 19px; font-weight: 700; margin-top: 7px; letter-spacing: -.01em; }
+.phone-head .pf { font-size: 12px; opacity: .9; margin-top: 3px; }
+.phone-list { flex: 1 1 auto; overflow-y: auto; padding: 13px 13px 18px; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+.phone-card { background: #fff; border-radius: 13px; padding: 11px; display: flex; gap: 10px; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+.phone-num { width: 32px; height: 32px; border-radius: 9px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); background: var(--accent-soft); }
+.phone-card-t { font-size: 13px; font-weight: 600; color: #1C1E1D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-card-m { font-size: 11px; color: #8A8E89; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-note { font-size: 10.5px; color: var(--tx3); text-align: center; margin-top: 14px; line-height: 1.4; padding: 0 6px; }
+.send-actions { flex: 1 1 auto; padding: 30px; display: flex; flex-direction: column; min-width: 0; }
+.send-actions h2 { font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--tx); }
+.send-actions-sub { font-size: 13.5px; color: var(--tx2); margin-top: 5px; }
+.send-label { margin-top: 22px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--tx3); }
+.send-share-row { display: flex; gap: 10px; margin-top: 9px; }
+.send-share-btn { flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); border-radius: 11px; padding: 12px; font-size: 13.5px; font-weight: 600; background: var(--surface); color: var(--tx); cursor: pointer; font-family: inherit; transition: all .15s; }
+.send-share-btn.wa:hover { border-color: #25D366; background: #F2FBF5; }
+.send-share-btn.mail:hover { border-color: #3B7EA1; background: #F1F7FA; }
+.send-email-row { display: flex; gap: 8px; margin-top: 9px; }
+.send-primary { margin-top: 22px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 12px; box-shadow: 0 4px 14px rgba(14,144,128,.3); border: none; cursor: pointer; font-family: inherit; transition: background .15s; }
+.send-primary:hover { background: var(--accent-strong); }
+@media (max-width: 720px) {
+  .send-dialog { flex-direction: column; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .send-phone { width: 100%; padding: 20px 0; }
+  .send-actions { padding: 22px; }
+}
+
 /* Exercise list */
 .ex-list { display: grid; gap: 9px; }
 .ex-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; padding-left: 16px; transition: all .15s; cursor: pointer; touch-action: manipulation; }
@@ -817,6 +850,13 @@ const LANG = {
     emailSubject: 'Deine Übungen',
     emailBody: 'Hallo,\n\nim Anhang findest du deine Übungen.\n(Bitte das PDF noch anhängen.)\n\nViele Grüße',
     shareUnavailable: 'Teilen hier nicht verfügbar – Datei gespeichert',
+    sendTitle: 'Plan senden',
+    sendSub: (name, n) => `${name} erhält ${n} ${n === 1 ? 'Übung' : 'Übungen'}.`,
+    sendPreviewTitle: 'Dein Übungsplan',
+    sendPreviewFrom: 'von deiner Praxis',
+    sendPreviewNote: 'Bei Schmerzen Übung abbrechen und Rücksprache mit der Praxis halten.',
+    sendShareLabel: 'Direkt teilen',
+    sendPdfLabel: 'Als Datei',
   },
   en: {
     app: 'PhysioHome',
@@ -929,6 +969,13 @@ const LANG = {
     emailSubject: 'Your exercises',
     emailBody: 'Hi,\n\nplease find your exercises attached.\n(Please attach the PDF.)\n\nBest regards',
     shareUnavailable: 'Sharing not available here – file saved',
+    sendTitle: 'Send plan',
+    sendSub: (name, n) => `${name} gets ${n} ${n === 1 ? 'exercise' : 'exercises'}.`,
+    sendPreviewTitle: 'Your exercise plan',
+    sendPreviewFrom: 'from your practice',
+    sendPreviewNote: 'Stop the exercise if it hurts and check back with your practice.',
+    sendShareLabel: 'Share directly',
+    sendPdfLabel: 'As a file',
   }
 };
 
@@ -975,6 +1022,8 @@ const SVG_SEND = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" st
 const SVG_EXTILE = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0E9080" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"></circle><path d="M12 7v6m0 0-3.5 5M12 13l3.5 5M6.5 9.5 12 11l5.5-1.5"></path></svg>';
 const SVG_VIDEO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#0E9080"><path d="M8 5v14l11-7z"></path></svg>';
 const SVG_X = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>';
+const SVG_WA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2Zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.2.1.4.1.5-.1l.7-.9c.2-.2.4-.2.6-.1l1.9.9c.3.1.4.2.5.3.1.2.1.6-.1 1.1Z"></path></svg>';
+const SVG_MAIL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B7EA1" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>';
 
 function t(k, ...a) {
   const v = LANG[S.lang][k];
@@ -1876,6 +1925,21 @@ function libDrawerRows() {
   }).join('');
 }
 
+// Übungskarten für die Handy-Vorschau im Senden-Modal (so, wie der Klient sie sieht).
+function sendPreviewCards(c) {
+  if (!c || !c.exercises.length) return `<div style="text-align:center;color:#9A9E99;font-size:12px;padding:30px 10px">${t('noExercises')}</div>`;
+  return c.exercises.map((ex, i) => {
+    const meta = exMeta(ex, c.language).join(' · ');
+    return `<div class="phone-card">
+      <div class="phone-num">${i + 1}</div>
+      <div style="flex:1 1 auto;min-width:0">
+        <div class="phone-card-t">${esc(ex.title)}</div>
+        ${meta ? `<div class="phone-card-m">${esc(meta)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function showModal() {
   const m = S.modal;
   let html = '';
@@ -1929,6 +1993,48 @@ function showModal() {
         <div class="drawer-list" id="lib-drawer-list">${libDrawerRows()}</div>
       </div>
     </div>`;
+  } else if (m.type === 'send') {
+    const c = client();
+    const cl = LANG[c?.language || 'de'];
+    const firstName = esc((c?.name || '').split(' ')[0]);
+    const n = c ? c.exercises.length : 0;
+    const hasVideos = c && c.exercises.some(ex => ex.mediaType?.startsWith('video'));
+    const showShare = CAN_SHARE_FILES && IS_MOBILE;
+    html = `<div class="send-overlay" id="moverlay">
+      <div class="send-dialog">
+        <div class="send-phone">
+          <div class="phone-frame"><div class="phone-screen">
+            <div class="phone-head">
+              <div class="pl">PHYSIOHOME</div>
+              <div class="pt">${cl.sendPreviewTitle}</div>
+              <div class="pf">${cl.sendPreviewFrom} · ${fmtDate(new Date().toISOString())}</div>
+            </div>
+            <div class="phone-list">
+              ${sendPreviewCards(c)}
+              <div class="phone-note">${cl.sendPreviewNote}</div>
+            </div>
+          </div></div>
+        </div>
+        <div class="send-actions">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div>
+              <h2>${t('sendTitle')}</h2>
+              <div class="send-actions-sub">${t('sendSub', firstName, n)}</div>
+            </div>
+            <button class="drawer-close" id="drawer-close" title="${t('cancel')}">${SVG_X}</button>
+          </div>
+          <div class="send-label">${t('sendShareLabel')}</div>
+          <div class="send-share-row">
+            ${showShare ? `<button class="send-share-btn wa" id="send-wa">${SVG_WA}WhatsApp</button>` : ''}
+            <button class="send-share-btn mail" id="send-mail">${SVG_MAIL}E-Mail</button>
+          </div>
+          <div class="send-email-row"><input class="form-input" id="email-to" type="email" placeholder="${t('emailPh')}" value="${esc(c?.email)}"></div>
+          ${hasVideos ? `<button class="send-share-btn" id="send-videos" style="margin-top:9px">${t('videoBtn')}</button>` : ''}
+          <div style="flex:1 1 auto;min-height:14px"></div>
+          <button class="send-primary" id="send-pdf">${t('pdfBtn')}</button>
+        </div>
+      </div>
+    </div>`;
   }
   const el = document.createElement('div');
   el.innerHTML = html;
@@ -1941,6 +2047,18 @@ function closeModal() { S.modal = null; document.getElementById('moverlay')?.rem
 
 function bindModal() {
   document.getElementById('m-cancel')?.addEventListener('click', closeModal);
+  // Senden-Modal: Vorschau + Teilen/PDF/E-Mail an die vorhandenen Funktionen anbinden.
+  if (S.modal.type === 'send') {
+    const c = client();
+    const closeSend = () => { closeModal(); render(); };
+    document.getElementById('moverlay')?.addEventListener('click', e => { if (e.target.id === 'moverlay') closeSend(); });
+    document.getElementById('drawer-close')?.addEventListener('click', closeSend);
+    document.getElementById('send-wa')?.addEventListener('click', () => doShare(c));
+    document.getElementById('send-mail')?.addEventListener('click', () => doEmail(c));
+    document.getElementById('send-pdf')?.addEventListener('click', () => doPdf(c));
+    document.getElementById('send-videos')?.addEventListener('click', () => doVideos(c));
+    return;
+  }
   // Bibliotheks-Drawer: eigene Interaktionen (kein m-ok-Button, daher vor der Prüfung unten)
   if (S.modal.type === 'lib-picker') {
     const closeDrawer = () => { closeModal(); render(); };
@@ -2041,7 +2159,7 @@ function bind() {
 
   // Client view
   document.getElementById('btn-add-ex')?.addEventListener('click', () => { clearForm(); S.view = 'ex-form'; render(); });
-  document.getElementById('btn-export')?.addEventListener('click', () => { S.view = 'export'; render(); });
+  document.getElementById('btn-export')?.addEventListener('click', () => { S.modal = { type: 'send' }; render(); });
   document.getElementById('btn-edit-client')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('goal-edit')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('btn-del-client')?.addEventListener('click', () => {
