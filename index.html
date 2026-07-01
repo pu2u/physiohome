@@ -1651,7 +1651,7 @@ function renderSidebar() {
             <div class="pat-name">${esc(c.name)}</div>
             <div class="pat-cond">${c.goal ? esc(c.goal) : t('exCount', c.exercises.length)}</div>
           </div>
-          <div class="pat-dot" style="background:${c.lastExport ? '#CFD3CD' : 'var(--accent)'}" title="${c.lastExport ? (S.lang === 'de' ? 'Gesendet' : 'Sent') : (S.lang === 'de' ? 'Entwurf – noch nicht gesendet' : 'Draft – not sent yet')}"></div>
+          <div class="pat-dot" style="background:${c.lastExport ? 'var(--accent)' : '#CFD3CD'}" title="${c.lastExport ? (S.lang === 'de' ? 'Gesendet' : 'Sent') : (S.lang === 'de' ? 'Entwurf – noch nicht gesendet' : 'Draft – not sent yet')}"></div>
         </button>`;
       }).join('')
     : `<div style="padding:24px 10px;color:var(--tx3);font-size:13px;text-align:center">${S.clients.length ? t('noResults') : t('noClients')}</div>`;
@@ -1967,9 +1967,12 @@ function showModal() {
         <label class="form-label">${t('goalLabel')}</label>
         <textarea class="form-textarea" id="m-goal" placeholder="${t('goalPh')}" style="min-height:64px">${esc(ed?.goal)}</textarea>
       </div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
-        <button class="btn btn-primary" id="m-ok">${ed ? t('save') : t('createClient')}</button>
+      <div class="modal-actions"${ed ? ' style="justify-content:space-between"' : ''}>
+        ${ed ? `<button class="btn btn-danger btn-sm" id="m-delete">${t('delClientBtn')}</button>` : ''}
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
+          <button class="btn btn-primary" id="m-ok">${ed ? t('save') : t('createClient')}</button>
+        </div>
       </div>
     </div></div>`;
   } else if (m.type === 'confirm') {
@@ -2106,6 +2109,16 @@ function bindModal() {
     };
     ok.addEventListener('click', confirm);
     document.getElementById('m-name').addEventListener('keydown', e => e.key === 'Enter' && confirm());
+    document.getElementById('m-delete')?.addEventListener('click', () => {
+      const cid = S.modal.clientId;
+      S.modal = { type: 'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
+        const c = S.clients.find(x => x.id === cid);
+        if (c) for (const ex of c.exercises) if (ex.mediaRef) await mediaDel(ex.mediaRef);
+        S.clients = S.clients.filter(x => x.id !== cid);
+        save(); if (S.clientId === cid) S.clientId = null; S.view = 'home'; render(); toast(t('deleted'));
+      }};
+      render();
+    });
   } else {
     ok.addEventListener('click', () => { S.modal.onOk?.(); closeModal(); });
   }
