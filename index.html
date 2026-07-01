@@ -133,9 +133,13 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .dash-main { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 30px 40px 56px; }
 .dash-col { max-width: 780px; margin: 0 auto; animation: fadeIn .35s ease; }
 .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
-.detail-id { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.detail-id { display: flex; align-items: center; gap: 15px; min-width: 0; cursor: pointer; border-radius: 12px; padding: 6px 10px; margin: -6px -10px; transition: background .12s; }
+.detail-id:hover { background: var(--surface-2); }
 .detail-av { width: 54px; height: 54px; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; }
-.detail-name { font-size: 25px; font-weight: 700; letter-spacing: -.02em; color: var(--tx); line-height: 1.1; }
+.detail-name { font-size: 25px; font-weight: 700; letter-spacing: -.02em; color: var(--tx); line-height: 1.1; display: inline-flex; align-items: center; gap: 9px; }
+.edit-pencil { display: inline-flex; color: var(--tx3); flex: 0 0 auto; }
+.edit-pencil svg { width: 17px; height: 17px; }
+.detail-id:hover .edit-pencil { color: var(--accent); }
 .detail-meta { font-size: 14px; color: var(--tx2); margin-top: 3px; }
 .detail-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .status-pill { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 20px; white-space: nowrap; }
@@ -1647,7 +1651,7 @@ function renderSidebar() {
             <div class="pat-name">${esc(c.name)}</div>
             <div class="pat-cond">${c.goal ? esc(c.goal) : t('exCount', c.exercises.length)}</div>
           </div>
-          <div class="pat-dot" style="background:${c.lastExport ? '#CFD3CD' : 'var(--accent)'}"></div>
+          <div class="pat-dot" style="background:${c.lastExport ? '#CFD3CD' : 'var(--accent)'}" title="${c.lastExport ? (S.lang === 'de' ? 'Gesendet' : 'Sent') : (S.lang === 'de' ? 'Entwurf – noch nicht gesendet' : 'Draft – not sent yet')}"></div>
         </button>`;
       }).join('')
     : `<div style="padding:24px 10px;color:var(--tx3);font-size:13px;text-align:center">${S.clients.length ? t('noResults') : t('noClients')}</div>`;
@@ -1731,15 +1735,16 @@ function renderClientMain() {
   return `<div class="dash-col">${warn}${backupBar}
     <button class="detail-back" id="btn-deselect">← ${S.lang === 'de' ? 'Liste' : 'List'}</button>
     <div class="detail-head">
-      <div class="detail-id">
+      <div class="detail-id" id="edit-client-head" title="${S.lang === 'de' ? 'Patient bearbeiten' : 'Edit client'}">
         <div class="detail-av" style="background:${av}">${esc(initials(c.name))}</div>
         <div style="min-width:0">
-          <div class="detail-name">${esc(c.name)}</div>
+          <div class="detail-name">${esc(c.name)}<span class="edit-pencil">${ICONS.edit}</span></div>
           <div class="detail-meta">${t('exCount', n)}</div>
         </div>
       </div>
       <div class="detail-actions">
         <span class="status-pill ${sent ? 'status-sent' : 'status-draft'}">${statusLabel}</span>
+        <button class="ico-btn" id="btn-edit-client-head" title="${S.lang === 'de' ? 'Patient bearbeiten' : 'Edit client'}">${ICONS.edit}</button>
         ${n ? `<button class="btn-send" id="btn-export">${SVG_SEND}${S.lang === 'de' ? 'Senden' : 'Send'}</button>` : ''}
       </div>
     </div>
@@ -2161,6 +2166,8 @@ function bind() {
   document.getElementById('btn-add-ex')?.addEventListener('click', () => { clearForm(); S.view = 'ex-form'; render(); });
   document.getElementById('btn-export')?.addEventListener('click', () => { S.modal = { type: 'send' }; render(); });
   document.getElementById('btn-edit-client')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
+  document.getElementById('btn-edit-client-head')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
+  document.getElementById('edit-client-head')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('goal-edit')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('btn-del-client')?.addEventListener('click', () => {
     S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
