@@ -168,7 +168,7 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 }
 
 /* Plan-Karten mit Inline-Dosierung + Foto/Video (Redesign Stufe 3) */
-.plan-card { display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; animation: slideUp .3s ease; cursor: pointer; touch-action: manipulation; }
+.plan-card { display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; animation: slideUp .3s ease; cursor: pointer; touch-action: manipulation; min-width: 0; }
 .plan-card:hover { border-color: var(--accent-border); }
 .plan-thumb { width: 52px; height: 52px; border-radius: 11px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); overflow: hidden; }
 .plan-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -176,11 +176,12 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .plan-card-title { font-size: 15px; font-weight: 600; color: var(--tx); }
 .plan-card-desc { font-size: 12.5px; color: var(--tx2); margin-top: 3px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plan-fields { display: flex; align-items: flex-end; gap: 12px; margin-top: 11px; flex-wrap: wrap; }
-.plan-field { display: flex; flex-direction: column; gap: 4px; }
+.plan-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .plan-field > span { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--tx3); }
 .plan-field input { width: 56px; text-align: center; font-size: 14px; font-weight: 600; padding: 7px 4px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface-2); color: var(--tx); font-family: inherit; outline: none; transition: border-color .15s; }
 .plan-field input:focus { border-color: var(--accent); }
-.plan-field-wide input { width: 116px; text-align: left; padding: 7px 9px; font-weight: 500; }
+.plan-field-wide { flex: 1 1 116px; }
+.plan-field-wide input { width: 100%; min-width: 0; max-width: 220px; text-align: left; padding: 7px 9px; font-weight: 500; }
 .plan-actions { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
 
 /* Bibliotheks-Drawer (Redesign Stufe 4) */
@@ -239,7 +240,7 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 }
 
 /* Exercise list */
-.ex-list { display: grid; gap: 9px; }
+.ex-list { display: grid; gap: 9px; grid-template-columns: minmax(0, 1fr); }
 .ex-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; padding-left: 16px; transition: all .15s; cursor: pointer; touch-action: manipulation; }
 .ex-card:hover { border-color: var(--accent); }
 .ex-num { background: var(--accent-soft); color: var(--accent); width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; margin-right: 13px; }
