@@ -208,6 +208,7 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .drawer-added { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: #4E9A6B; background: #E8F1EB; padding: 8px 12px; border-radius: 9px; white-space: nowrap; }
 .drawer-sec { font-size: 11.5px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .05em; margin: 4px 2px 0; }
 .drawer-note { font-size: 12px; color: var(--tx3); line-height: 1.45; margin: -3px 2px 2px; }
+.drawer-region { font-size: 11px; font-weight: 700; color: var(--accent-strong); text-transform: uppercase; letter-spacing: .05em; margin: 8px 2px -2px; }
 @media (max-width: 560px) { .drawer { width: 100%; max-width: 100%; } }
 
 /* Senden-Modal mit Handy-Vorschau (Redesign Stufe 5) */
@@ -1392,18 +1393,76 @@ async function copyExercise(src) {
 // Bewährte, wissenschaftlich untersuchte Übungsprogramme als Ausgangspunkt (Quelle steht im
 // Drawer). Fest eingebaut, ohne Medien – Dosierung und Auswahl immer individuell anpassen.
 // Beim Übernehmen werden die Übungen als unabhängige Kopien in den Klientenplan geschrieben.
+// `region` gruppiert die Liste im Drawer (Reihenfolge im Array = Reihenfolge im Drawer).
+// Komplexe OP-Nachbehandlungen (VKB, Achillessehnenruptur) sind bewusst NICHT enthalten –
+// die sind phasen-/kriteriengesteuert und gehören individuell geplant.
 const PRESET_PROGRAMS = [
   {
-    id: 'preset-achilles',
-    name: 'Achillessehne – exzentrisches Training (Alfredson)',
-    source: 'Alfredson et al. 1998',
+    id: 'preset-nacken',
+    region: 'Nacken / HWS',
+    name: 'Chronische Nackenschmerzen – tiefe Nackenflexoren',
+    source: 'Jull et al. 2002; Ylinen et al. 2003',
     exercises: [
-      { title: 'Wadenabsenken einbeinig, Knie gestreckt', description: 'Mit dem Vorfuß auf einer Stufe stehen. Mit beiden Beinen hochdrücken, dann auf dem betroffenen Bein die Ferse langsam unter das Stufenniveau absenken. Mit dem gesunden Bein zurück nach oben. Moderater Schmerz während der Übung ist erlaubt; Steigerung über Zusatzgewicht (Rucksack).', sets: '3', reps: '15', hold: '', frequency: '2× täglich, 12 Wochen' },
-      { title: 'Wadenabsenken einbeinig, Knie gebeugt', description: 'Wie zuvor, aber mit leicht gebeugtem Knie (ca. 20–30°) absenken – trainiert vor allem den M. soleus.', sets: '3', reps: '15', hold: '', frequency: '2× täglich, 12 Wochen' },
+      { title: 'Kraniozervikale Flexion („Ja-Nicken“)', description: 'Rückenlage, Knie angestellt. Sanftes, kleines Nicken, als würde das Kinn leicht eingezogen – kein Kopfheben, kein Pressen, ruhig weiteratmen. Selbstkontrolle: Finger seitlich an den Hals – die oberflächliche Muskulatur bleibt dabei weich.', sets: '', reps: '10', hold: '10 s', frequency: '2× täglich' },
+      { title: 'Chin Tuck im Sitzen', description: 'Aufrecht sitzen oder an der Wand stehen, den Hinterkopf sanft nach hinten-oben schieben („Doppelkinn“), kurz halten. Ideal für zwischendurch am Arbeitsplatz – mehrmals pro Stunde aufrichten.', sets: '3', reps: '10', hold: '', frequency: 'mehrmals täglich' },
+      { title: 'Schulterblatt-Setting', description: 'Schulterblätter sanft nach hinten-unten ziehen, ohne die Schultern hochzuziehen, kurz halten.', sets: '3', reps: '10', hold: '', frequency: 'täglich' },
+      { title: 'Kopfheben in Rückenlage (Steigerung)', description: 'Erst nach ca. 2 Wochen dazunehmen: Kinn einziehen und den Kopf nur 2–3 cm anheben, klein und kontrolliert. Bei Zittern oder vorgeschobenem Kinn den Satz beenden.', sets: '3', reps: '10–20', hold: '', frequency: 'täglich' },
+    ],
+  },
+  {
+    id: 'preset-schulter',
+    region: 'Schulter',
+    name: 'Rotatorenmanschette (subakromialer Schmerz)',
+    source: 'Holmgren et al. 2012 (BMJ) u. a.',
+    exercises: [
+      { title: 'Außenrotation mit Theraband', description: 'Ellbogen 90° gebeugt am Körper anlegen (evtl. Handtuch dazwischen). Das Band langsam nach außen rotieren und noch langsamer zurückführen.', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
+      { title: 'Innenrotation mit Theraband', description: 'Gleiche Ausgangsstellung, Band seitlich vom Körper befestigt. Den Unterarm langsam zum Bauch rotieren und kontrolliert zurück.', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
+      { title: 'Rudern mit Theraband', description: 'Band auf Brusthöhe befestigen, Ellbogen nach hinten ziehen und die Schulterblätter aktiv zusammenführen. Schultern tief lassen (nicht hochziehen).', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
+      { title: 'Seitheben exzentrisch („Full Can“)', description: 'Arm mit Daumen nach oben leicht schräg vor dem Körper anheben (ggf. mit dem gesunden Arm unterstützen) und über 3–5 Sekunden langsam absenken. Nur im schmerzarmen Bereich üben.', sets: '3', reps: '10–15', hold: '', frequency: 'jeden 2. Tag' },
+    ],
+  },
+  {
+    id: 'preset-frozen-1',
+    region: 'Schulter',
+    name: 'Frozen Shoulder – schmerzdominante Phase',
+    source: 'Kelley et al. 2013 (JOSPT-Leitlinie)',
+    exercises: [
+      { title: 'Pendeln', description: 'Oberkörper abstützen und vorneigen, den Arm locker hängen lassen und sanft auspendeln – nicht aktiv führen. Grundregel dieser Phase: Übungen dürfen ziehen, aber keinen Schmerz auslösen, der danach anhält. Aktivität anpassen statt den Arm ruhigstellen.', sets: '3', reps: '', hold: '30 s', frequency: '3–5× täglich, kurze Einheiten' },
+      { title: 'Unterstützte Armhebung in Rückenlage', description: 'Der gesunde Arm hebt den betroffenen Arm nach oben mit. Kurz vor der Schmerzgrenze stoppen und halten.', sets: '', reps: '10', hold: '5–10 s', frequency: '3–5× täglich' },
+      { title: 'Außenrotation mit Stab (unterstützt)', description: 'Rückenlage oder Sitz, Ellbogen 90° am Körper. Der gesunde Arm schiebt über einen Stock den betroffenen Unterarm sanft nach außen – schmerzarm bleiben.', sets: '', reps: '10', hold: '5–10 s', frequency: '3–5× täglich' },
+      { title: 'Tischgleiten', description: 'Sitzend beide Hände auf dem Tisch nach vorne gleiten lassen, der Oberkörper neigt sich mit.', sets: '', reps: '10', hold: '5–10 s', frequency: '3–5× täglich' },
+      { title: 'Schulterblätter zusammenziehen', description: 'Schulterblätter sanft nach hinten-unten zusammenziehen und kurz halten.', sets: '3', reps: '10', hold: '', frequency: 'täglich' },
+    ],
+  },
+  {
+    id: 'preset-frozen-2',
+    region: 'Schulter',
+    name: 'Frozen Shoulder – steifigkeitsdominante Phase',
+    source: 'Kelley et al. 2013 (JOSPT-Leitlinie)',
+    exercises: [
+      { title: 'Außenrotations-Dehnung mit Stab', description: 'Wie in der Frühphase, jetzt aber bis in den spürbaren Gewebswiderstand dehnen und länger halten. Deutliches Dehngefühl ist erwünscht, solange am Folgetag keine Schmerzreaktion bleibt. Kehrt Nachtschmerz zurück: Intensität wieder senken.', sets: '4', reps: '', hold: '30 s', frequency: '1–2× täglich' },
+      { title: 'Arm-über-Körper-Dehnung (Cross-Body)', description: 'Den betroffenen Arm horizontal vor den Körper ziehen, bis es deutlich dehnt.', sets: '4', reps: '', hold: '30 s', frequency: '1–2× täglich' },
+      { title: 'Handtuch-Dehnung hinter dem Rücken', description: 'Handtuch hinter dem Rücken: die obere Hand zieht die untere (betroffene) langsam nach oben – dehnt die Innenrotation.', sets: '4', reps: '', hold: '30 s', frequency: '1–2× täglich' },
+      { title: 'Türrahmen-Dehnung', description: 'Unterarm am Türrahmen anlegen und den Oberkörper langsam vordrehen, bis es vorne an der Schulter dehnt.', sets: '3', reps: '', hold: '30 s', frequency: '1–2× täglich' },
+      { title: 'Außen-/Innenrotation mit Theraband', description: 'Kräftigung ergänzend zur Dehnung: Ellbogen 90° am Körper, beide Richtungen langsam gegen das Band.', sets: '3', reps: '12', hold: '', frequency: '3× pro Woche' },
+    ],
+  },
+  {
+    id: 'preset-tennisarm',
+    region: 'Ellenbogen',
+    name: 'Tennisarm – Exzentrik & progressive Kräftigung',
+    source: 'Tyler et al. 2010; Bisset et al. 2006',
+    exercises: [
+      { title: 'Tyler Twist (Torsionsstab)', description: 'Gummi-Torsionsstab (z. B. FlexBar): die gesunde Hand verdreht den Stab, die betroffene lässt ihn über ca. 4 Sekunden kontrolliert zurückdrehen. Ohne Stab: Handgelenk mit kleiner Hantel langsam absenken (exzentrisch). Schmerz bis 3–4/10 ist ok, wenn er am Folgetag nicht schlechter ist.', sets: '3', reps: '15', hold: '', frequency: 'täglich' },
+      { title: 'Isometrische Handgelenksstreckung', description: 'Handrücken gegen die andere Hand oder die Tischunterseite drücken, ohne Bewegung – hilft bei gereizter Sehne gegen den Schmerz.', sets: '4', reps: '', hold: '30 s', frequency: 'täglich' },
+      { title: 'Dehnung der Handgelenksstrecker', description: 'Ellbogen gestreckt, Handfläche nach unten; das Handgelenk mit der anderen Hand sanft in Beugung ziehen.', sets: '3', reps: '', hold: '30 s', frequency: 'täglich' },
+      { title: 'Handgelenksstreckung mit Kurzhantel', description: 'Ab ca. Woche 2: Unterarm auf Tisch/Oberschenkel auflegen, kleine Hantel langsam heben und noch langsamer absenken. Steigern (+0,5–1 kg), wenn 3×12 sauber und ohne Symptomanstieg gelingen.', sets: '3', reps: '12', hold: '', frequency: '3× pro Woche' },
+      { title: 'Griffkraft-Training', description: 'Ball oder Griptrainer schmerzarm drücken; später auch mit gestrecktem Ellbogen.', sets: '3', reps: '10', hold: '', frequency: '3× pro Woche' },
     ],
   },
   {
     id: 'preset-mcgill',
+    region: 'Rücken / Rumpf',
     name: 'Rumpfstabilität – McGill Big 3 (Rückenschmerz)',
     source: 'McGill, „Low Back Disorders“',
     exercises: [
@@ -1413,7 +1472,33 @@ const PRESET_PROGRAMS = [
     ],
   },
   {
+    id: 'preset-leiste',
+    region: 'Leiste / Hüfte',
+    name: 'Adduktorenbezogener Leistenschmerz (Hölmich, Modul 1)',
+    source: 'Hölmich et al. 1999 (Lancet)',
+    exercises: [
+      { title: 'Ball zwischen den Füßen drücken (isometrisch)', description: 'Rückenlage, Fußball zwischen Füßen/Knöcheln sanft zusammendrücken und halten – schmerzfrei bleiben. Während des Programms kein Sport (schmerzfreies Radfahren erlaubt) und kein Adduktoren-Dehnen.', sets: '', reps: '10', hold: '30 s', frequency: '3× pro Woche' },
+      { title: 'Ball zwischen den Knien drücken (isometrisch)', description: 'Rückenlage, Beine angestellt, Ball zwischen den Knien sanft zusammendrücken und halten.', sets: '', reps: '10', hold: '30 s', frequency: '3× pro Woche' },
+      { title: 'Sit-ups (gerade und schräg)', description: 'Im Wechsel gerade und diagonal aufrollen.', sets: '5', reps: '10', hold: '', frequency: '3× pro Woche' },
+      { title: 'Klappmesser-Sit-up', description: 'Sit-up mit gleichzeitigem Anziehen der Beine, Ball zwischen den Knien.', sets: '5', reps: '10', hold: '', frequency: '3× pro Woche' },
+      { title: 'Balancebrett', description: 'Auf dem Wackelbrett stehen und die Balance halten – am Stück.', sets: '', reps: '', hold: '5 min', frequency: '3× pro Woche' },
+      { title: 'Seitliches Gleiten (Schlittschuhschritt)', description: 'Auf glattem Boden (Socken/Gleitbrett) kontrollierte Schlittschuhbewegungen zur Seite, pro Bein.', sets: '5', reps: '', hold: '1 min', frequency: '3× pro Woche' },
+    ],
+  },
+  {
+    id: 'preset-hamstring',
+    region: 'Oberschenkel (Hamstrings)',
+    name: 'Hamstring-Zerrung – Askling L-Protokoll',
+    source: 'Askling et al. 2013 (BJSM)',
+    exercises: [
+      { title: 'Extender', description: 'Rückenlage, die Hüfte des verletzten Beins mit den Händen bei ca. 90° halten, das Knie langsam strecken und kurz VOR der Schmerzgrenze umkehren. Alle drei Übungen des Protokolls bleiben schmerzfrei; kein zusätzliches Hamstring-Dehnen.', sets: '3', reps: '12', hold: '', frequency: '2× täglich' },
+      { title: 'Diver („Kopfsprung“)', description: 'Stand auf dem verletzten Bein, den Oberkörper langsam nach vorne absenken, Arme nach vorne strecken, das hintere Bein streckt nach hinten-oben – Becken waagrecht halten. Erst dazunehmen, wenn die Bewegung schmerzfrei und mit stabiler Balance gelingt.', sets: '3', reps: '6', hold: '', frequency: 'jeden 2. Tag' },
+      { title: 'Glider (Gleiter)', description: 'Mit einer Hand festhalten, verletztes Bein vorne auf der Ferse, das andere Bein gleitet (Socke/Handtuch) langsam nach hinten. Zurück NUR mit den Armen drücken, nicht mit dem Bein ziehen. Als letzte Übung starten; erst den Gleitweg, dann das Tempo steigern.', sets: '3', reps: '4', hold: '', frequency: 'jeden 3. Tag' },
+    ],
+  },
+  {
     id: 'preset-gonarthrose',
+    region: 'Knie',
     name: 'Kniearthrose – Kräftigung & Funktion',
     source: 'Cochrane (Fransen et al. 2015), GLA:D',
     exercises: [
@@ -1424,8 +1509,68 @@ const PRESET_PROGRAMS = [
     ],
   },
   {
+    id: 'preset-pfps',
+    region: 'Knie',
+    name: 'Patellofemoraler Schmerz („Läuferknie“) – Hüfte + Knie',
+    source: 'Willy et al. 2019 (JOSPT-Leitlinie)',
+    exercises: [
+      { title: 'Hüftabduktion in Seitlage', description: 'Seitlage, oberes Bein gestreckt anheben, Becken stabil. Start hüftbetont: die ersten 1–2 Wochen zuerst die Hüftübungen; Knieübungen erst dazunehmen, wenn sie schmerzarm gehen (max. 2–3/10).', sets: '3', reps: '15', hold: '', frequency: '3× pro Woche' },
+      { title: 'Clamshell (Muschel)', description: 'Seitlage, Knie gebeugt aufeinander. Das obere Knie öffnen, die Füße bleiben zusammen, das Becken kippt nicht nach hinten.', sets: '3', reps: '15', hold: '', frequency: '3× pro Woche' },
+      { title: 'Brücke einbeinig', description: 'Rückenlage, ein Bein angestellt, das andere gestreckt. Becken anheben, oben kurz halten, langsam ablegen.', sets: '3', reps: '10', hold: '', frequency: '3× pro Woche' },
+      { title: 'Seitlicher Bandgang', description: 'Miniband um die Knöchel oder oberhalb der Knie, in leichter Kniebeuge kontrolliert seitwärts gehen (pro Richtung).', sets: '3', reps: '12', hold: '', frequency: '3× pro Woche' },
+      { title: 'Kniebeuge (schmerzarmer Bereich)', description: 'Nur so tief, wie es schmerzarm bleibt. Das Knie folgt der Achse über dem 2.–3. Zeh, kein Kollaps nach innen.', sets: '3', reps: '12', hold: '', frequency: '3× pro Woche' },
+      { title: 'Step-down von der Stufe', description: 'Auf der Stufe stehen, das freie Bein langsam Richtung Boden absenken (Ferse tippt kurz auf) und kontrolliert wieder hoch – betont die bremsende Muskelarbeit.', sets: '3', reps: '10', hold: '', frequency: '3× pro Woche' },
+    ],
+  },
+  {
+    id: 'preset-patellasehne',
+    region: 'Knie',
+    name: 'Patellasehne (Jumper’s Knee) – Heavy Slow Resistance',
+    source: 'Kongsgaard et al. 2009; Rio et al. 2015',
+    exercises: [
+      { title: 'Wandsitz isometrisch (Schmerzmanagement)', description: 'Bei gereizter Sehne oder direkt vor dem Sport: isometrisches Halten lindert den Schmerz für ca. 45 Minuten. Ersetzt aber nicht das langsame Krafttraining.', sets: '5', reps: '', hold: '45 s', frequency: 'täglich, bei Bedarf mehrfach' },
+      { title: 'Langsame Kniebeuge (HSR)', description: '3 s runter, 3 s hoch – nie schneller, bis ca. 90° Kniebeugung. Last über 12 Wochen steigern: Woche 1 mit 15 Wdh., bis Woche 9–12 nur noch 6 Wdh. mit schwerer Last (Rucksack/Hanteln/Langhantel). Schmerz während der Übung ist ok, darf am Folgetag aber nicht stärker sein.', sets: '4', reps: '15 → 6', hold: '', frequency: '3× pro Woche' },
+      { title: 'Beinpresse (falls Gerät vorhanden)', description: 'Gleiches langsames Tempo (3 s + 3 s) und gleiche Wiederholungs-Steigerung wie bei der Kniebeuge.', sets: '4', reps: '15 → 6', hold: '', frequency: '3× pro Woche' },
+    ],
+  },
+  {
+    id: 'preset-achilles',
+    region: 'Achillessehne / Wade',
+    name: 'Achillessehne – exzentrisches Training (Alfredson)',
+    source: 'Alfredson et al. 1998',
+    exercises: [
+      { title: 'Wadenabsenken einbeinig, Knie gestreckt', description: 'Mit dem Vorfuß auf einer Stufe stehen. Mit beiden Beinen hochdrücken, dann auf dem betroffenen Bein die Ferse langsam unter das Stufenniveau absenken. Mit dem gesunden Bein zurück nach oben. Moderater Schmerz während der Übung ist erlaubt; Steigerung über Zusatzgewicht (Rucksack).', sets: '3', reps: '15', hold: '', frequency: '2× täglich, 12 Wochen' },
+      { title: 'Wadenabsenken einbeinig, Knie gebeugt', description: 'Wie zuvor, aber mit leicht gebeugtem Knie (ca. 20–30°) absenken – trainiert vor allem den M. soleus.', sets: '3', reps: '15', hold: '', frequency: '2× täglich, 12 Wochen' },
+    ],
+  },
+  {
+    id: 'preset-sprunggelenk',
+    region: 'Sprunggelenk',
+    name: 'Nach Umknicken – Frühphase & Kräftigung',
+    source: 'Vuurberg et al. 2018 (Leitlinie); Bleakley et al. 2010',
+    exercises: [
+      { title: 'Fuß-Alphabet', description: 'Mit der Fußspitze langsam das ABC in die Luft schreiben – frühe Bewegung beschleunigt die Heilung. Gehen nach Verträglichkeit; Tape oder Orthese für 4–6 Wochen.', sets: '3', reps: '', hold: '', frequency: 'mehrmals täglich' },
+      { title: 'Fußaußenrand gegen Theraband heben (Eversion)', description: 'Band um den Vorfuß, den Fuß gegen den Widerstand nach außen drehen – die wichtigste Richtung für die Stabilität. Stärkeres Band, sobald 3×15 leicht fallen.', sets: '3', reps: '15', hold: '', frequency: 'täglich' },
+      { title: 'Wadenheben beidbeinig → einbeinig', description: 'Auf die Zehenspitzen und langsam zurück. Wenn beidbeinig leicht: auf einbeinig steigern.', sets: '3', reps: '12–15', hold: '', frequency: 'täglich' },
+      { title: 'Einbeinstand', description: 'Nahe einer Wand üben. Steigerung: Arme verschränken, weiche Unterlage.', sets: '3', reps: '', hold: '30 s', frequency: 'täglich' },
+    ],
+  },
+  {
+    id: 'preset-balance',
+    region: 'Sprunggelenk',
+    name: 'Balance-Heimprogramm (Rezidivprophylaxe)',
+    source: 'Hupperets et al. 2009 (BMJ)',
+    exercises: [
+      { title: 'Einbeinstand', description: '8-Wochen-Programm ab ca. Woche 2 nach dem Umknicken – senkte in der Studie das Risiko eines erneuten Umknickens um rund ein Drittel. Schwierigkeit alle 1–2 Wochen steigern: fester Boden → Kissen → Balancebrett. Die vollen 8 Wochen durchziehen!', sets: '4', reps: '', hold: '30 s', frequency: '3× pro Woche, 8 Wochen' },
+      { title: 'Einbeinstand mit geschlossenen Augen', description: 'Erst wenn der Einbeinstand mit offenen Augen stabil gelingt.', sets: '3', reps: '', hold: '30 s', frequency: '3× pro Woche' },
+      { title: 'Balancebrett oder Kissen', description: 'Auf instabiler Unterlage stehen – erst beidbeinig, dann einbeinig.', sets: '4', reps: '', hold: '30 s', frequency: '3× pro Woche' },
+      { title: 'Einbeinstand mit Ballwerfen', description: 'Einbeinig stehen und dabei einen Ball werfen und fangen (gegen die Wand oder mit Partner).', sets: '3', reps: '10', hold: '', frequency: '3× pro Woche' },
+    ],
+  },
+  {
     id: 'preset-otago',
-    name: 'Sturzprophylaxe – Kraft & Gleichgewicht (Otago, Auszug)',
+    region: 'Sturzprophylaxe',
+    name: 'Kraft & Gleichgewicht für Ältere (Otago, Auszug)',
     source: 'Otago Exercise Programme (Campbell/Robertson)',
     exercises: [
       { title: 'Kniestrecken im Sitzen', description: 'Aufrecht sitzen, ein Bein langsam strecken und wieder beugen. Pro Bein üben; Steigerung mit Gewichtsmanschette am Sprunggelenk.', sets: '2', reps: '10', hold: '', frequency: '3× pro Woche' },
@@ -1433,17 +1578,6 @@ const PRESET_PROGRAMS = [
       { title: 'Tandemstand', description: 'Eine Ferse direkt vor die Zehen des anderen Fußes stellen und die Position halten, danach die Fußstellung wechseln. Anfangs in Reichweite einer stabilen Haltemöglichkeit üben.', sets: '', reps: '', hold: '10 s', frequency: 'täglich' },
       { title: 'Einbeinstand', description: 'Auf einem Bein stehen, Blick geradeaus, danach die Seite wechseln. Anfangs mit Fingerspitzen-Kontakt an Tisch oder Wand, später frei.', sets: '', reps: '', hold: '10 s', frequency: 'täglich' },
       { title: 'Gehprogramm', description: 'Zügiges Gehen in sicherer Umgebung. Im gewohnten Tempo beginnen und langsam steigern.', sets: '', reps: '', hold: '', frequency: '2× pro Woche, ca. 30 min' },
-    ],
-  },
-  {
-    id: 'preset-schulter',
-    name: 'Schulter – Rotatorenmanschette (subakromialer Schmerz)',
-    source: 'Holmgren et al. 2012 (BMJ) u. a.',
-    exercises: [
-      { title: 'Außenrotation mit Theraband', description: 'Ellbogen 90° gebeugt am Körper anlegen (evtl. Handtuch dazwischen). Das Band langsam nach außen rotieren und noch langsamer zurückführen.', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
-      { title: 'Innenrotation mit Theraband', description: 'Gleiche Ausgangsstellung, Band seitlich vom Körper befestigt. Den Unterarm langsam zum Bauch rotieren und kontrolliert zurück.', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
-      { title: 'Rudern mit Theraband', description: 'Band auf Brusthöhe befestigen, Ellbogen nach hinten ziehen und die Schulterblätter aktiv zusammenführen. Schultern tief lassen (nicht hochziehen).', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
-      { title: 'Seitheben exzentrisch („Full Can“)', description: 'Arm mit Daumen nach oben leicht schräg vor dem Körper anheben (ggf. mit dem gesunden Arm unterstützen) und über 3–5 Sekunden langsam absenken. Nur im schmerzarmen Bereich üben.', sets: '3', reps: '10–15', hold: '', frequency: 'jeden 2. Tag' },
     ],
   },
 ];
@@ -2057,11 +2191,18 @@ function progDrawerRows() {
   const mine = S.programs.length
     ? S.programs.map(p => row(p, true)).join('')
     : `<div class="drawer-note">${t('progMineEmpty')}</div>`;
+  // Literatur-Programme nach Körperregion gruppieren (Array-Reihenfolge = Anzeige-Reihenfolge)
+  let lastRegion = null;
+  const presets = PRESET_PROGRAMS.map(p => {
+    const head = p.region !== lastRegion ? `<div class="drawer-region">${esc(p.region)}</div>` : '';
+    lastRegion = p.region;
+    return head + row(p, false);
+  }).join('');
   return `<div class="drawer-sec">${t('progMineHead')}</div>
     ${mine}
     <div class="drawer-sec" style="margin-top:14px">${t('progPresetHead')}</div>
     <div class="drawer-note">${t('progPresetNote')}</div>
-    ${PRESET_PROGRAMS.map(p => row(p, false)).join('')}`;
+    ${presets}`;
 }
 
 // Übungskarten für die Handy-Vorschau im Senden-Modal (so, wie der Klient sie sieht).
