@@ -183,6 +183,8 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .plan-field-wide { flex: 1 1 116px; }
 .plan-field-wide input { width: 100%; min-width: 0; max-width: 220px; text-align: left; padding: 7px 9px; font-weight: 500; }
 .plan-actions { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+.plan-move { display: flex; flex-direction: column; justify-content: center; gap: 2px; flex: 0 0 auto; }
+.ico-btn:disabled { opacity: .22; cursor: default; pointer-events: none; }
 
 /* Bibliotheks-Drawer (Redesign Stufe 4) */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(28,30,29,.34); z-index: 200; animation: fadeIn .2s ease; }
@@ -204,6 +206,8 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .drawer-add { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); border: 1px solid var(--accent-border); padding: 8px 12px; border-radius: 9px; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .drawer-add:hover { background: #dcefe9; }
 .drawer-added { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: #4E9A6B; background: #E8F1EB; padding: 8px 12px; border-radius: 9px; white-space: nowrap; }
+.drawer-sec { font-size: 11.5px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .05em; margin: 4px 2px 0; }
+.drawer-note { font-size: 12px; color: var(--tx3); line-height: 1.45; margin: -3px 2px 2px; }
 @media (max-width: 560px) { .drawer { width: 100%; max-width: 100%; } }
 
 /* Senden-Modal mit Handy-Vorschau (Redesign Stufe 5) */
@@ -790,6 +794,22 @@ const LANG = {
     libAddedN: n => `✓ ${n} ${n === 1 ? 'Übung' : 'Übungen'} hinzugefügt`,
     toLibrary: 'In Bibliothek speichern',
     addedToLibrary: '✓ In Bibliothek gespeichert',
+    moveUp: 'Nach oben',
+    moveDown: 'Nach unten',
+    progBtn: '📋 Programm-Vorlagen',
+    progSaveBtn: '⭐ Plan als Vorlage',
+    progPickerTitle: 'Programm-Vorlagen',
+    progMineHead: 'Meine Vorlagen',
+    progMineEmpty: 'Noch keine eigenen Vorlagen. Öffne einen Klienten mit fertigem Plan und tippe auf „⭐ Plan als Vorlage“.',
+    progPresetHead: 'Aus der Literatur',
+    progPresetNote: 'Wissenschaftlich untersuchte Standard-Programme (Quelle in der Zeile). Bitte immer individuell an den Klienten anpassen.',
+    progUse: 'Übernehmen',
+    progSaveTitle: 'Plan als Vorlage speichern',
+    progNameLabel: 'Name der Vorlage *',
+    progNamePh: 'z. B. Knie-TEP Phase 1',
+    progSaved: '✓ Als Vorlage gespeichert',
+    progDelete: 'Vorlage löschen',
+    progDeleteQ: 'Diese Vorlage wirklich löschen? Bereits zu Klienten hinzugefügte Übungen bleiben erhalten.',
     media: 'Foto / Video',
     changeMedia: '🔄 Ändern',
     removeMedia: '✕ Entfernen',
@@ -909,6 +929,22 @@ const LANG = {
     libAddedN: n => `✓ ${n} exercise${n !== 1 ? 's' : ''} added`,
     toLibrary: 'Save to library',
     addedToLibrary: '✓ Saved to library',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    progBtn: '📋 Program templates',
+    progSaveBtn: '⭐ Save plan as template',
+    progPickerTitle: 'Program templates',
+    progMineHead: 'My templates',
+    progMineEmpty: 'No templates yet. Open a client with a finished plan and tap "⭐ Save plan as template".',
+    progPresetHead: 'From the literature',
+    progPresetNote: 'Evidence-based standard programs (source shown per row). Always adapt to the individual client.',
+    progUse: 'Use',
+    progSaveTitle: 'Save plan as template',
+    progNameLabel: 'Template name *',
+    progNamePh: 'e.g. Knee TEP phase 1',
+    progSaved: '✓ Saved as template',
+    progDelete: 'Delete template',
+    progDeleteQ: 'Really delete this template? Exercises already added to clients are kept.',
     media: 'Photo / Video',
     changeMedia: '🔄 Change',
     removeMedia: '✕ Remove',
@@ -990,6 +1026,7 @@ const S = {
   lang: 'de',
   clients: [],
   library: [],        // wiederverwendbare Übungen (Bibliothek)
+  programs: [],       // eigene Programm-Vorlagen (ganze Pläne, inkl. Medien-Kopien)
   exCtx: 'client',    // Kontext des Übungsformulars: 'client' | 'library'
   clientId: null,
   exId: null,
@@ -1013,6 +1050,8 @@ const ICONS = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="3" x2="16" y2="9"/><line x1="13" y1="6" x2="19" y2="6"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
 };
 
 // Avatar-Farben (zyklisch nach Klienten-Index) – weiße Initialen. Aus dem Redesign.
@@ -1026,6 +1065,8 @@ const SVG_SEND = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" st
 // Tile-Icons für Übungskarten ohne Foto (Bewegungs-Figur) bzw. mit Video (Play)
 const SVG_EXTILE = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0E9080" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"></circle><path d="M12 7v6m0 0-3.5 5M12 13l3.5 5M6.5 9.5 12 11l5.5-1.5"></path></svg>';
 const SVG_VIDEO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#0E9080"><path d="M8 5v14l11-7z"></path></svg>';
+// Klemmbrett-Icon für Programm-Vorlagen im Drawer
+const SVG_PROG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E9080" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6M9 16h6"></path></svg>';
 const SVG_X = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>';
 const SVG_WA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2Zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.2.1.4.1.5-.1l.7-.9c.2-.2.4-.2.6-.1l1.9.9c.3.1.4.2.5.3.1.2.1.6-.1 1.1Z"></path></svg>';
 const SVG_MAIL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B7EA1" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>';
@@ -1048,6 +1089,7 @@ function esc(s) {
 function load() {
   try { S.clients = JSON.parse(localStorage.getItem('ph_clients') || '[]'); } catch {}
   try { S.library = JSON.parse(localStorage.getItem('ph_library') || '[]'); } catch {}
+  try { S.programs = JSON.parse(localStorage.getItem('ph_programs') || '[]'); } catch {}
 }
 // Speichert nach localStorage. Gibt true bei Erfolg, false wenn der Speicher voll ist (Quota),
 // damit die Aufrufer KEINE falsche "Gespeichert"-Meldung zeigen (Bug K2).
@@ -1055,6 +1097,7 @@ function save() {
   try {
     localStorage.setItem('ph_clients', JSON.stringify(S.clients));
     localStorage.setItem('ph_library', JSON.stringify(S.library));
+    localStorage.setItem('ph_programs', JSON.stringify(S.programs));
     const w = document.getElementById('storage-warn');
     if (w) w.style.display = 'none';
     return true;
@@ -1078,20 +1121,22 @@ function backupDue() {
   if (!last) return true;
   return daysSince(last) >= 7;
 }
-// Vollständiges Backup (v2, mit Video-Clips aus IndexedDB) als JSON-Datei herunterladen.
+// Vollständiges Backup (v4, mit Video-Clips aus IndexedDB) als JSON-Datei herunterladen.
 async function doBackup() {
   const media = {};
-  // Video-Clips aller Klienten UND der Bibliothek einsammeln (selbst-enthaltendes Backup)
+  // Video-Clips aller Klienten, der Bibliothek UND der Programm-Vorlagen einsammeln
+  // (selbst-enthaltendes Backup)
   const allEx = [];
   for (const c of S.clients) for (const ex of c.exercises) allEx.push(ex);
   for (const ex of S.library) allEx.push(ex);
+  for (const p of S.programs) for (const ex of p.exercises) allEx.push(ex);
   for (const ex of allEx) {
     if (ex.mediaRef && ex.mediaType?.startsWith('video') && !media[ex.mediaRef]) {
       const blob = await mediaGet(ex.mediaRef);
       if (blob) media[ex.mediaRef] = await blobToDataUrl(blob);
     }
   }
-  const data = JSON.stringify({ version: 3, date: new Date().toISOString(), clients: S.clients, library: S.library, media }, null, 2);
+  const data = JSON.stringify({ version: 4, date: new Date().toISOString(), clients: S.clients, library: S.library, programs: S.programs, media }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const dateStr = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `PhysioHome_Backup_${dateStr}.json`);
@@ -1342,6 +1387,66 @@ async function copyExercise(src) {
   const m = await dupMedia(src);
   return { id: uid(), title: src.title, description: src.description || '', sets: src.sets || '', reps: src.reps || '', hold: src.hold || '', frequency: src.frequency || '', ...m };
 }
+
+// ===== PROGRAMM-VORLAGEN AUS DER LITERATUR =====
+// Bewährte, wissenschaftlich untersuchte Übungsprogramme als Ausgangspunkt (Quelle steht im
+// Drawer). Fest eingebaut, ohne Medien – Dosierung und Auswahl immer individuell anpassen.
+// Beim Übernehmen werden die Übungen als unabhängige Kopien in den Klientenplan geschrieben.
+const PRESET_PROGRAMS = [
+  {
+    id: 'preset-achilles',
+    name: 'Achillessehne – exzentrisches Training (Alfredson)',
+    source: 'Alfredson et al. 1998',
+    exercises: [
+      { title: 'Wadenabsenken einbeinig, Knie gestreckt', description: 'Mit dem Vorfuß auf einer Stufe stehen. Mit beiden Beinen hochdrücken, dann auf dem betroffenen Bein die Ferse langsam unter das Stufenniveau absenken. Mit dem gesunden Bein zurück nach oben. Moderater Schmerz während der Übung ist erlaubt; Steigerung über Zusatzgewicht (Rucksack).', sets: '3', reps: '15', hold: '', frequency: '2× täglich, 12 Wochen' },
+      { title: 'Wadenabsenken einbeinig, Knie gebeugt', description: 'Wie zuvor, aber mit leicht gebeugtem Knie (ca. 20–30°) absenken – trainiert vor allem den M. soleus.', sets: '3', reps: '15', hold: '', frequency: '2× täglich, 12 Wochen' },
+    ],
+  },
+  {
+    id: 'preset-mcgill',
+    name: 'Rumpfstabilität – McGill Big 3 (Rückenschmerz)',
+    source: 'McGill, „Low Back Disorders“',
+    exercises: [
+      { title: 'Curl-Up (modifiziert)', description: 'Rückenlage, ein Bein angestellt, Hände unter der Lendenwirbelsäule. Kopf und Schultern nur wenige Zentimeter anheben, der untere Rücken bleibt neutral. Kein klassischer Sit-up!', sets: '3', reps: '5', hold: '8–10 s', frequency: 'täglich' },
+      { title: 'Seitstütz (Side Bridge)', description: 'Seitlage im Unterarmstütz, Knie (leichter) oder Füße (schwerer) als Auflage. Becken anheben, bis der Körper eine gerade Linie bildet. Beide Seiten üben.', sets: '3', reps: '5', hold: '8–10 s', frequency: 'täglich' },
+      { title: 'Vierfüßlerstand diagonal (Bird Dog)', description: 'Im Vierfüßlerstand gegengleich Arm und Bein ausstrecken, Rumpf ruhig halten, Becken nicht verdrehen. Langsam die Seiten wechseln.', sets: '3', reps: '5', hold: '8–10 s', frequency: 'täglich' },
+    ],
+  },
+  {
+    id: 'preset-gonarthrose',
+    name: 'Kniearthrose – Kräftigung & Funktion',
+    source: 'Cochrane (Fransen et al. 2015), GLA:D',
+    exercises: [
+      { title: 'Aufstehen vom Stuhl (Sit-to-Stand)', description: 'Von einem Stuhl aufstehen und langsam wieder hinsetzen, möglichst ohne Schwung und ohne Abstützen der Hände. Schwerer: tieferer Stuhl oder Zusatzgewicht.', sets: '3', reps: '8–12', hold: '', frequency: '2–3× pro Woche' },
+      { title: 'Step-up auf Stufe', description: 'Mit dem betroffenen Bein auf eine Stufe steigen, langsam wieder absteigen. Das Knie bleibt über dem Fuß (nicht nach innen kippen). Pro Bein üben.', sets: '3', reps: '8–12', hold: '', frequency: '2–3× pro Woche' },
+      { title: 'Hüftabduktion in Seitlage', description: 'Seitlage, unteres Bein gebeugt. Oberes Bein gestreckt anheben, Fußspitze zeigt nach vorne, Becken stabil halten.', sets: '3', reps: '10–15', hold: '', frequency: '2–3× pro Woche' },
+      { title: 'Wandsitz', description: 'Mit dem Rücken an der Wand in eine leichte Kniebeuge rutschen (ca. 45–60° Kniebeugung) und die Position halten.', sets: '3', reps: '', hold: '20–30 s', frequency: '2–3× pro Woche' },
+    ],
+  },
+  {
+    id: 'preset-otago',
+    name: 'Sturzprophylaxe – Kraft & Gleichgewicht (Otago, Auszug)',
+    source: 'Otago Exercise Programme (Campbell/Robertson)',
+    exercises: [
+      { title: 'Kniestrecken im Sitzen', description: 'Aufrecht sitzen, ein Bein langsam strecken und wieder beugen. Pro Bein üben; Steigerung mit Gewichtsmanschette am Sprunggelenk.', sets: '2', reps: '10', hold: '', frequency: '3× pro Woche' },
+      { title: 'Aufstehen vom Stuhl', description: 'Von einem Stuhl aufstehen und kontrolliert wieder hinsetzen – wenn möglich ohne Abstützen der Hände.', sets: '2', reps: '10', hold: '', frequency: '3× pro Woche' },
+      { title: 'Tandemstand', description: 'Eine Ferse direkt vor die Zehen des anderen Fußes stellen und die Position halten, danach die Fußstellung wechseln. Anfangs in Reichweite einer stabilen Haltemöglichkeit üben.', sets: '', reps: '', hold: '10 s', frequency: 'täglich' },
+      { title: 'Einbeinstand', description: 'Auf einem Bein stehen, Blick geradeaus, danach die Seite wechseln. Anfangs mit Fingerspitzen-Kontakt an Tisch oder Wand, später frei.', sets: '', reps: '', hold: '10 s', frequency: 'täglich' },
+      { title: 'Gehprogramm', description: 'Zügiges Gehen in sicherer Umgebung. Im gewohnten Tempo beginnen und langsam steigern.', sets: '', reps: '', hold: '', frequency: '2× pro Woche, ca. 30 min' },
+    ],
+  },
+  {
+    id: 'preset-schulter',
+    name: 'Schulter – Rotatorenmanschette (subakromialer Schmerz)',
+    source: 'Holmgren et al. 2012 (BMJ) u. a.',
+    exercises: [
+      { title: 'Außenrotation mit Theraband', description: 'Ellbogen 90° gebeugt am Körper anlegen (evtl. Handtuch dazwischen). Das Band langsam nach außen rotieren und noch langsamer zurückführen.', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
+      { title: 'Innenrotation mit Theraband', description: 'Gleiche Ausgangsstellung, Band seitlich vom Körper befestigt. Den Unterarm langsam zum Bauch rotieren und kontrolliert zurück.', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
+      { title: 'Rudern mit Theraband', description: 'Band auf Brusthöhe befestigen, Ellbogen nach hinten ziehen und die Schulterblätter aktiv zusammenführen. Schultern tief lassen (nicht hochziehen).', sets: '3', reps: '10–15', hold: '', frequency: '1× täglich' },
+      { title: 'Seitheben exzentrisch („Full Can“)', description: 'Arm mit Daumen nach oben leicht schräg vor dem Körper anheben (ggf. mit dem gesunden Arm unterstützen) und über 3–5 Sekunden langsam absenken. Nur im schmerzarmen Bereich üben.', sets: '3', reps: '10–15', hold: '', frequency: 'jeden 2. Tag' },
+    ],
+  },
+];
 
 // Echtes PDF mit einem Klick erzeugen (kein Druck-Dialog) – via jsPDF
 function buildPdfBlob(c) {
@@ -1704,7 +1809,7 @@ function renderClientMain() {
   const sent = c.lastExport;
   const field = (ex, f, label, ph, wide) => `<label class="plan-field${wide ? ' plan-field-wide' : ''}"><span>${label}</span><input type="text" data-exid="${ex.id}" data-exfield="${f}" value="${esc(ex[f])}" placeholder="${ph}"></label>`;
   const list = n
-    ? `<div class="ex-list">${c.exercises.map((ex) => {
+    ? `<div class="ex-list">${c.exercises.map((ex, i) => {
         const isVid = ex.mediaType?.startsWith('video');
         const thumb = (ex.mediaData && !isVid) ? `<img src="${ex.mediaData}" alt="">` : (isVid ? SVG_VIDEO : SVG_EXTILE);
         return `
@@ -1719,6 +1824,10 @@ function renderClientMain() {
               ${field(ex, 'hold', t('fHold'), '–', false)}
               ${field(ex, 'frequency', t('fFreq'), t('fFreqPh'), true)}
             </div>
+          </div>
+          <div class="plan-move">
+            <button class="ico-btn" data-moveup="${ex.id}" title="${t('moveUp')}"${i === 0 ? ' disabled' : ''}>${ICONS.up}</button>
+            <button class="ico-btn" data-movedown="${ex.id}" title="${t('moveDown')}"${i === n - 1 ? ' disabled' : ''}>${ICONS.down}</button>
           </div>
           <div class="plan-actions">
             <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">${ICONS.edit}</button>
@@ -1760,6 +1869,8 @@ function renderClientMain() {
     ${list}
     <div class="action-bar">
       <button class="btn btn-secondary" id="btn-from-lib">${t('addFromLibrary')}</button>
+      <button class="btn btn-secondary" id="btn-programs">${t('progBtn')}</button>
+      ${n ? `<button class="btn btn-secondary btn-sm" id="btn-save-prog">${t('progSaveBtn')}</button>` : ''}
       <button class="btn btn-secondary btn-sm" id="btn-edit-client">${t('editClientBtn')}</button>
       <button class="btn btn-danger btn-sm" id="btn-del-client">${t('delClientBtn')}</button>
     </div>`;
@@ -1931,6 +2042,28 @@ function libDrawerRows() {
   }).join('');
 }
 
+// Zeilen für den Programm-Vorlagen-Drawer: eigene Vorlagen (löschbar) + Programme aus der
+// Literatur (fest eingebaut, mit Quellenangabe).
+function progDrawerRows() {
+  const row = (p, del) => `<div class="drawer-row">
+      <div class="drawer-tile">${SVG_PROG}</div>
+      <div style="flex:1 1 auto;min-width:0">
+        <div class="drawer-row-title">${esc(p.name)}</div>
+        <div class="drawer-row-meta">${t('exCount', p.exercises.length)}${p.source ? ` · ${esc(p.source)}` : ''}</div>
+      </div>
+      <button class="drawer-add" data-progadd="${p.id}">+ ${t('progUse')}</button>
+      ${del ? `<button class="ico-btn del" data-progdel="${p.id}" title="${t('delete')}">${ICONS.trash}</button>` : ''}
+    </div>`;
+  const mine = S.programs.length
+    ? S.programs.map(p => row(p, true)).join('')
+    : `<div class="drawer-note">${t('progMineEmpty')}</div>`;
+  return `<div class="drawer-sec">${t('progMineHead')}</div>
+    ${mine}
+    <div class="drawer-sec" style="margin-top:14px">${t('progPresetHead')}</div>
+    <div class="drawer-note">${t('progPresetNote')}</div>
+    ${PRESET_PROGRAMS.map(p => row(p, false)).join('')}`;
+}
+
 // Übungskarten für die Handy-Vorschau im Senden-Modal (so, wie der Klient sie sieht).
 function sendPreviewCards(c) {
   if (!c || !c.exercises.length) return `<div style="text-align:center;color:#9A9E99;font-size:12px;padding:30px 10px">${t('noExercises')}</div>`;
@@ -2002,6 +2135,34 @@ function showModal() {
         <div class="drawer-list" id="lib-drawer-list">${libDrawerRows()}</div>
       </div>
     </div>`;
+  } else if (m.type === 'prog-picker') {
+    const first = esc((client()?.name || '').split(' ')[0]);
+    html = `<div class="drawer-overlay" id="moverlay">
+      <div class="drawer">
+        <div class="drawer-head">
+          <div class="drawer-head-row">
+            <div>
+              <div class="drawer-title">${t('progPickerTitle')}</div>
+              <div class="drawer-sub">${S.lang === 'de' ? `Ganzes Programm zu ${first}s Plan hinzufügen` : `Add a whole program to ${first}'s plan`}</div>
+            </div>
+            <button class="drawer-close" id="drawer-close" title="${t('cancel')}">${SVG_X}</button>
+          </div>
+        </div>
+        <div class="drawer-list" id="prog-drawer-list">${progDrawerRows()}</div>
+      </div>
+    </div>`;
+  } else if (m.type === 'prog-save') {
+    html = `<div class="modal-overlay" id="moverlay"><div class="modal">
+      <div class="modal-title">📋 ${t('progSaveTitle')}</div>
+      <div class="form-group">
+        <label class="form-label">${t('progNameLabel')}</label>
+        <input class="form-input" id="m-progname" type="text" placeholder="${t('progNamePh')}">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
+        <button class="btn btn-primary" id="m-ok">${t('save')}</button>
+      </div>
+    </div></div>`;
   } else if (m.type === 'send') {
     const c = client();
     const cl = LANG[c?.language || 'de'];
@@ -2048,7 +2209,7 @@ function showModal() {
   const el = document.createElement('div');
   el.innerHTML = html;
   document.getElementById('app').appendChild(el.firstElementChild);
-  setTimeout(() => document.getElementById('m-name')?.focus(), 40);
+  setTimeout(() => (document.getElementById('m-name') || document.getElementById('m-progname'))?.focus(), 40);
   bindModal();
 }
 
@@ -2084,6 +2245,53 @@ function bindModal() {
     }));
     document.getElementById('lib-drawer-search')?.addEventListener('input', e => { S.libSearch = e.target.value; refreshList(); });
     bindAdds();
+    return;
+  }
+  // Programm-Vorlagen-Drawer: ganzes Programm übernehmen bzw. eigene Vorlage löschen.
+  if (S.modal.type === 'prog-picker') {
+    const closeDrawer = () => { closeModal(); render(); };
+    document.getElementById('moverlay')?.addEventListener('click', e => { if (e.target.id === 'moverlay') closeDrawer(); });
+    document.getElementById('drawer-close')?.addEventListener('click', closeDrawer);
+    document.querySelectorAll('[data-progadd]').forEach(b => b.addEventListener('click', async () => {
+      const pid = b.dataset.progadd;
+      const prog = S.programs.find(p => p.id === pid) || PRESET_PROGRAMS.find(p => p.id === pid);
+      const c = client();
+      if (!prog || !c) return;
+      for (const ex of prog.exercises) c.exercises.push(await copyExercise(ex));
+      const ok = save();
+      closeDrawer();
+      toast(ok ? t('libAddedN', prog.exercises.length) : t('saveFailed'));
+    }));
+    document.querySelectorAll('[data-progdel]').forEach(b => b.addEventListener('click', () => {
+      const pid = b.dataset.progdel;
+      S.modal = { type: 'confirm', title: t('progDelete'), text: t('progDeleteQ'), onOk: async () => {
+        const p = S.programs.find(x => x.id === pid);
+        if (p) for (const ex of p.exercises) if (ex.mediaRef) await mediaDel(ex.mediaRef);
+        S.programs = S.programs.filter(x => x.id !== pid);
+        save(); render(); toast(t('deleted'));
+      }};
+      render();
+    }));
+    return;
+  }
+  // Plan als Vorlage speichern: Name abfragen, Übungen als unabhängige Kopien ablegen.
+  if (S.modal.type === 'prog-save') {
+    document.getElementById('moverlay')?.addEventListener('click', e => { if (e.target.id === 'moverlay') closeModal(); });
+    const confirmSave = async () => {
+      const inp = document.getElementById('m-progname');
+      const name = inp.value.trim();
+      if (!name) { inp.classList.add('err'); return; }
+      const c = client();
+      if (!c) { closeModal(); return; }
+      const exs = [];
+      for (const ex of c.exercises) exs.push(await copyExercise(ex));
+      S.programs.push({ id: uid(), name, exercises: exs });
+      const ok = save();
+      closeModal(); render();
+      toast(ok ? t('progSaved') : t('saveFailed'));
+    };
+    document.getElementById('m-ok')?.addEventListener('click', confirmSave);
+    document.getElementById('m-progname')?.addEventListener('keydown', e => e.key === 'Enter' && confirmSave());
     return;
   }
   document.getElementById('moverlay')?.addEventListener('click', e => { if (e.target.id === 'moverlay') closeModal(); });
@@ -2154,6 +2362,7 @@ function bind() {
           }
           S.clients = parsed.clients;
           if (Array.isArray(parsed.library)) S.library = parsed.library;   // Bibliothek (ab Backup v3)
+          if (Array.isArray(parsed.programs)) S.programs = parsed.programs; // Programm-Vorlagen (ab Backup v4)
           setLastBackup();   // es existiert nachweislich eine Sicherung
           const ok = save(); render(); toast(ok ? t('restoreOk') : t('saveFailed'));
         }};
@@ -2227,8 +2436,25 @@ function bind() {
     }};
     render();
   }));
+  // Übung im Plan nach oben/unten verschieben (Reihenfolge gilt auch für PDF/Export)
+  document.querySelectorAll('[data-moveup],[data-movedown]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const c = client(); if (!c) return;
+    const id = b.dataset.moveup || b.dataset.movedown;
+    const dir = b.dataset.moveup ? -1 : 1;
+    const i = c.exercises.findIndex(x => x.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= c.exercises.length) return;
+    [c.exercises[i], c.exercises[j]] = [c.exercises[j], c.exercises[i]];
+    if (!save()) toast(t('saveFailed'));
+    render();
+  }));
+
   // Client: aus Bibliothek hinzufügen + einzelne Übung in Bibliothek speichern
   document.getElementById('btn-from-lib')?.addEventListener('click', () => { S.libSearch = ''; S.modal = { type: 'lib-picker' }; render(); });
+  // Programm-Vorlagen: Drawer öffnen bzw. aktuellen Plan als Vorlage speichern
+  document.getElementById('btn-programs')?.addEventListener('click', () => { S.modal = { type: 'prog-picker' }; render(); });
+  document.getElementById('btn-save-prog')?.addEventListener('click', () => { S.modal = { type: 'prog-save' }; render(); });
   document.querySelectorAll('[data-tolib]').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
     const src = client().exercises.find(x => x.id === b.dataset.tolib);
