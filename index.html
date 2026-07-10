@@ -183,7 +183,10 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .plan-field-wide { flex: 1 1 116px; }
 .plan-field-wide input { width: 100%; min-width: 0; max-width: 220px; text-align: left; padding: 7px 9px; font-weight: 500; }
 .plan-actions { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
-.plan-move { display: flex; flex-direction: column; justify-content: center; gap: 2px; flex: 0 0 auto; }
+.plan-move { display: flex; align-items: center; flex: 0 0 auto; }
+.plan-drag { cursor: grab; touch-action: none; }
+.plan-drag:active { cursor: grabbing; }
+.plan-card.dragging { opacity: .92; box-shadow: 0 10px 26px rgba(28,30,29,.16); position: relative; z-index: 5; user-select: none; }
 .ico-btn:disabled { opacity: .22; cursor: default; pointer-events: none; }
 
 /* Bibliotheks-Drawer (Redesign Stufe 4) */
@@ -795,8 +798,7 @@ const LANG = {
     libAddedN: n => `✓ ${n} ${n === 1 ? 'Übung' : 'Übungen'} hinzugefügt`,
     toLibrary: 'In Bibliothek speichern',
     addedToLibrary: '✓ In Bibliothek gespeichert',
-    moveUp: 'Nach oben',
-    moveDown: 'Nach unten',
+    dragMove: 'Zum Verschieben ziehen',
     progBtn: '📋 Programm-Vorlagen',
     progSaveBtn: '⭐ Plan als Vorlage',
     progPickerTitle: 'Programm-Vorlagen',
@@ -930,8 +932,7 @@ const LANG = {
     libAddedN: n => `✓ ${n} exercise${n !== 1 ? 's' : ''} added`,
     toLibrary: 'Save to library',
     addedToLibrary: '✓ Saved to library',
-    moveUp: 'Move up',
-    moveDown: 'Move down',
+    dragMove: 'Drag to reorder',
     progBtn: '📋 Program templates',
     progSaveBtn: '⭐ Save plan as template',
     progPickerTitle: 'Program templates',
@@ -1051,8 +1052,7 @@ const ICONS = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="3" x2="16" y2="9"/><line x1="13" y1="6" x2="19" y2="6"/></svg>',
-  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>',
-  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>',
 };
 
 // Avatar-Farben (zyklisch nach Klienten-Index) – weiße Initialen. Aus dem Redesign.
@@ -1943,11 +1943,11 @@ function renderClientMain() {
   const sent = c.lastExport;
   const field = (ex, f, label, ph, wide) => `<label class="plan-field${wide ? ' plan-field-wide' : ''}"><span>${label}</span><input type="text" data-exid="${ex.id}" data-exfield="${f}" value="${esc(ex[f])}" placeholder="${ph}"></label>`;
   const list = n
-    ? `<div class="ex-list">${c.exercises.map((ex, i) => {
+    ? `<div class="ex-list">${c.exercises.map((ex) => {
         const isVid = ex.mediaType?.startsWith('video');
         const thumb = (ex.mediaData && !isVid) ? `<img src="${ex.mediaData}" alt="">` : (isVid ? SVG_VIDEO : SVG_EXTILE);
         return `
-        <div class="plan-card" data-exid="${ex.id}" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
+        <div class="plan-card" data-exid="${ex.id}" title="${S.lang==='de'?'Antippen zum Bearbeiten':'Tap to edit'}">
           <div class="plan-thumb">${thumb}</div>
           <div class="plan-mid">
             <div class="plan-card-title">${esc(ex.title)}</div>
@@ -1960,11 +1960,9 @@ function renderClientMain() {
             </div>
           </div>
           <div class="plan-move">
-            <button class="ico-btn" data-moveup="${ex.id}" title="${t('moveUp')}"${i === 0 ? ' disabled' : ''}>${ICONS.up}</button>
-            <button class="ico-btn" data-movedown="${ex.id}" title="${t('moveDown')}"${i === n - 1 ? ' disabled' : ''}>${ICONS.down}</button>
+            <button class="ico-btn plan-drag" data-drag="${ex.id}" title="${t('dragMove')}">${ICONS.grip}</button>
           </div>
           <div class="plan-actions">
-            <button class="ico-btn" data-edit="${ex.id}" title="${t('editEx')}">${ICONS.edit}</button>
             <button class="ico-btn" data-tolib="${ex.id}" title="${t('toLibrary')}">${ICONS.bookmark}</button>
             <button class="ico-btn del" data-del="${ex.id}" title="${t('delete')}">${ICONS.trash}</button>
           </div>
@@ -2017,7 +2015,7 @@ function renderLibrary() {
         const meta = exMeta(ex, S.lang);
         const metaHtml = meta.length ? `<div class="ex-meta">${meta.map(p => `<span class="ex-chip">${esc(p)}</span>`).join('')}</div>` : '';
         return `
-        <div class="ex-card" title="${S.lang==='de'?'Doppelklick zum Bearbeiten':'Double-click to edit'}">
+        <div class="ex-card" data-libid="${ex.id}" title="${S.lang==='de'?'Antippen zum Bearbeiten':'Tap to edit'}">
           <div class="ex-num">${i+1}</div>
           <div class="ex-body">
             <div class="ex-title">${esc(ex.title)}</div>
@@ -2026,7 +2024,6 @@ function renderLibrary() {
             ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
           </div>
           <div class="ex-actions">
-            <button class="ico-btn" data-libedit="${ex.id}" title="${t('editEx')}">${ICONS.edit}</button>
             <button class="ico-btn del" data-libdel="${ex.id}" title="${t('delete')}">${ICONS.trash}</button>
           </div>
         </div>`;
@@ -2542,10 +2539,11 @@ function bind() {
     }};
     render();
   });
-  document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', async e => {
-    e.stopPropagation();
+  // Übung zum Bearbeiten öffnen – per Tipp/Klick auf die Karte. Klicks auf Knöpfe
+  // (Griff/Merken/Löschen) und die Inline-Dosierungsfelder zählen nicht.
+  const openExEdit = async id => {
     S.exCtx = 'client';
-    S.exId = b.dataset.edit;
+    S.exId = id;
     const ex = exercise();
     S.pendingTitle = ex?.title || '';
     S.pendingDesc = ex?.description || '';
@@ -2565,6 +2563,10 @@ function bind() {
       S.pendingMedia = null;
     }
     S.view = 'ex-form'; render();
+  };
+  document.querySelectorAll('.plan-card[data-exid]').forEach(card => card.addEventListener('click', e => {
+    if (e.target.closest('button, input, select, textarea, label')) return;
+    openExEdit(card.dataset.exid);
   }));
   document.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
@@ -2577,18 +2579,43 @@ function bind() {
     }};
     render();
   }));
-  // Übung im Plan nach oben/unten verschieben (Reihenfolge gilt auch für PDF/Export)
-  document.querySelectorAll('[data-moveup],[data-movedown]').forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation();
+  // Übung per Drag & Drop verschieben: nur am Griff (⠿) ziehbar, damit Scrollen und
+  // die Eingabefelder nicht gestört werden (Reihenfolge gilt auch für PDF/Export).
+  // Während des Ziehens wird nur das DOM umsortiert; erst beim Loslassen wandert die
+  // neue Reihenfolge in den State (Voll-Re-Render erst nach dem Drop).
+  document.querySelectorAll('[data-drag]').forEach(h => h.addEventListener('pointerdown', e => {
     const c = client(); if (!c) return;
-    const id = b.dataset.moveup || b.dataset.movedown;
-    const dir = b.dataset.moveup ? -1 : 1;
-    const i = c.exercises.findIndex(x => x.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= c.exercises.length) return;
-    [c.exercises[i], c.exercises[j]] = [c.exercises[j], c.exercises[i]];
-    if (!save()) toast(t('saveFailed'));
-    render();
+    const card = h.closest('.plan-card');
+    const list = card.parentElement;
+    const scroller = card.closest('.dash-main');
+    e.preventDefault();
+    try { h.setPointerCapture(e.pointerId); } catch {}
+    card.classList.add('dragging');
+    const move = ev => {
+      const y = ev.clientY;
+      if (scroller) {                    // nahe am Rand automatisch mitscrollen
+        const r = scroller.getBoundingClientRect();
+        if (y < r.top + 56) scroller.scrollTop -= 9;
+        else if (y > r.bottom - 56) scroller.scrollTop += 9;
+      }
+      const others = [...list.querySelectorAll('.plan-card:not(.dragging)')];
+      const next = others.find(k => { const b = k.getBoundingClientRect(); return y < b.top + b.height / 2; });
+      if (next) { if (next !== card.nextElementSibling) list.insertBefore(card, next); }
+      else if (list.lastElementChild !== card) list.appendChild(card);
+    };
+    const finish = commit => {
+      h.removeEventListener('pointermove', move);
+      card.classList.remove('dragging');
+      if (commit) {
+        const order = [...list.querySelectorAll('.plan-card')].map(k => k.dataset.exid);
+        c.exercises = order.map(id => c.exercises.find(x => x.id === id));
+        if (!save()) toast(t('saveFailed'));
+      }
+      render();
+    };
+    h.addEventListener('pointermove', move);
+    h.addEventListener('pointerup', () => finish(true), { once: true });
+    h.addEventListener('pointercancel', () => finish(false), { once: true });
   }));
 
   // Client: aus Bibliothek hinzufügen + einzelne Übung in Bibliothek speichern
@@ -2604,13 +2631,6 @@ function bind() {
     const ok = save(); render(); toast(ok ? t('addedToLibrary') : t('saveFailed'));
   }));
 
-  // Übungskarte per Doppelklick öffnen (= Bearbeiten). Funktioniert für Klienten- und
-  // Bibliothek-Karten; ein Doppelklick auf ein Aktions-Icon (Bearbeiten/Löschen/Merken) zählt nicht.
-  document.querySelectorAll('.ex-card, .plan-card').forEach(card => card.addEventListener('dblclick', e => {
-    if (e.target.closest('button, input, select, textarea, label')) return;
-    card.querySelector('[data-edit],[data-libedit]')?.click();
-  }));
-
   // Inline-Dosierung auf den Plan-Karten: beim Verlassen des Feldes speichern.
   // Bewusst KEIN render() -> der Fokus/Cursor bleibt erhalten (Voll-Re-Render würde ihn verlieren).
   document.querySelectorAll('.plan-field input').forEach(inp => inp.addEventListener('change', () => {
@@ -2623,10 +2643,10 @@ function bind() {
 
   // Library view
   document.getElementById('btn-add-lib-ex')?.addEventListener('click', () => { clearForm(); S.exCtx = 'library'; S.view = 'ex-form'; render(); });
-  document.querySelectorAll('[data-libedit]').forEach(b => b.addEventListener('click', async e => {
-    e.stopPropagation();
+  // Bibliothek: Übung per Tipp/Klick auf die Karte bearbeiten (wie im Plan)
+  const openLibEdit = async id => {
     S.exCtx = 'library';
-    S.exId = b.dataset.libedit;
+    S.exId = id;
     const ex = S.library.find(x => x.id === S.exId);
     S.pendingTitle = ex?.title || '';
     S.pendingDesc = ex?.description || '';
@@ -2641,6 +2661,10 @@ function bind() {
       S.pendingMedia = { data: ex.mediaData, type: ex.mediaType };
     } else { S.pendingMedia = null; }
     S.view = 'ex-form'; render();
+  };
+  document.querySelectorAll('.ex-card[data-libid]').forEach(card => card.addEventListener('click', e => {
+    if (e.target.closest('button, input, select, textarea, label')) return;
+    openLibEdit(card.dataset.libid);
   }));
   document.querySelectorAll('[data-libdel]').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
