@@ -130,6 +130,7 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .pat-cond { font-size: 12px; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .pat-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .side-foot { padding: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px; }
+.side-storage { font-size: 11px; color: var(--tx3); text-align: center; min-height: 13px; }
 .dash-main { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 30px 40px 56px; }
 .dash-col { max-width: 780px; margin: 0 auto; animation: fadeIn .35s ease; }
 .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
@@ -847,6 +848,7 @@ const LANG = {
     editEx: 'Übung bearbeiten',
     exportTitle: 'Export',
     storageWarn: '⚠️ Speicher fast voll. Lösche alte Klienten um Platz zu schaffen.',
+    storageInfo: (u, q) => `💾 Speicher: ${u} von ${q} belegt`,
     saveFailed: '⚠️ Nicht gespeichert – Speicher voll. Bitte alte Fotos oder Klienten löschen.',
     delClientBtn: '🗑 Klient löschen',
     backupAll: '💾 Alle Daten sichern',
@@ -981,6 +983,7 @@ const LANG = {
     editEx: 'Edit Exercise',
     exportTitle: 'Export',
     storageWarn: '⚠️ Storage almost full. Delete old clients to free up space.',
+    storageInfo: (u, q) => `💾 Storage: ${u} of ${q} used`,
     saveFailed: '⚠️ Not saved – storage full. Please delete old photos or clients.',
     delClientBtn: '🗑 Delete Client',
     backupAll: '💾 Backup all data',
@@ -1087,26 +1090,58 @@ function esc(s) {
 }
 
 // ===== DATA =====
-function load() {
+// Lädt die App-Daten. Primär aus IndexedDB (Store 'kv', mehrere GB Platz); findet sich dort
+// nichts, werden einmalig die alten localStorage-Daten (~5 MB, Versionen bis v21) übernommen
+// und die alten Schlüssel danach gelöscht, damit es nur EINE Datenquelle gibt.
+async function load() {
+  let fromDb = false;
+  try {
+    const [c, l, p] = await Promise.all([kvGet('clients'), kvGet('library'), kvGet('programs')]);
+    if (c) { S.clients = c; S.library = l || []; S.programs = p || []; fromDb = true; }
+  } catch {}
+  if (fromDb) return;
   try { S.clients = JSON.parse(localStorage.getItem('ph_clients') || '[]'); } catch {}
   try { S.library = JSON.parse(localStorage.getItem('ph_library') || '[]'); } catch {}
   try { S.programs = JSON.parse(localStorage.getItem('ph_programs') || '[]'); } catch {}
-}
-// Speichert nach localStorage. Gibt true bei Erfolg, false wenn der Speicher voll ist (Quota),
-// damit die Aufrufer KEINE falsche "Gespeichert"-Meldung zeigen (Bug K2).
-function save() {
-  try {
-    localStorage.setItem('ph_clients', JSON.stringify(S.clients));
-    localStorage.setItem('ph_library', JSON.stringify(S.library));
-    localStorage.setItem('ph_programs', JSON.stringify(S.programs));
-    const w = document.getElementById('storage-warn');
-    if (w) w.style.display = 'none';
-    return true;
-  } catch {
-    const w = document.getElementById('storage-warn');
-    if (w) w.style.display = 'block';
-    return false;
+  if (S.clients.length || S.library.length || S.programs.length) {
+    try {
+      await kvSet({ clients: S.clients, library: S.library, programs: S.programs });
+      // erst NACH erfolgreichem Schreiben die alten Schlüssel entfernen (Migration sicher)
+      ['ph_clients', 'ph_library', 'ph_programs'].forEach(k => localStorage.removeItem(k));
+    } catch {}
   }
+}
+// Speichert nach IndexedDB. Das Schreiben läuft asynchron im Hintergrund: save() gibt sofort
+// true zurück; schlägt das Schreiben doch fehl (Gerätespeicher voll), erscheinen nachträglich
+// Warnbanner + Fehlermeldung – der Nutzer erfährt also weiterhin von JEDEM fehlgeschlagenen
+// Speichern (Bug K2). Die Aufrufer-Konvention `const ok = save(); toast(ok ? ...)` bleibt gültig.
+function save() {
+  kvSet({ clients: S.clients, library: S.library, programs: S.programs })
+    .then(() => { const w = document.getElementById('storage-warn'); if (w) w.style.display = 'none'; })
+    .catch(() => {
+      const w = document.getElementById('storage-warn');
+      if (w) w.style.display = 'block';
+      toast(t('saveFailed'));
+    });
+  return true;
+}
+// Kleine Speicheranzeige in der Seitenleiste (belegt / verfügbar laut Browser).
+function fmtBytes(n) {
+  if (typeof n !== 'number') return '?';
+  const loc = S.lang === 'de' ? 'de-AT' : 'en-GB';
+  if (n < 1048576) return Math.round(n / 1024).toLocaleString(loc) + ' KB';
+  if (n < 1073741824) return (n / 1048576).toLocaleString(loc, { maximumFractionDigits: 1 }) + ' MB';
+  return (n / 1073741824).toLocaleString(loc, { maximumFractionDigits: 1 }) + ' GB';
+}
+async function updateStorageInfo() {
+  const el = document.getElementById('storage-info');
+  if (!el || !navigator.storage?.estimate) return;
+  try {
+    const { usage, quota } = await navigator.storage.estimate();
+    el.textContent = t('storageInfo', fmtBytes(usage), fmtBytes(quota));
+    // Vorwarnung zeigen, bevor der Speicher wirklich voll ist
+    if (quota && usage / quota > 0.9) { const w = document.getElementById('storage-warn'); if (w) w.style.display = 'block'; }
+  } catch {}
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
@@ -1333,21 +1368,44 @@ function blobToDataUrl(blob) {
   });
 }
 
-// ===== MEDIEN-SPEICHER (IndexedDB) =====
-// Videos sind zu groß für localStorage (~5 MB). Sie werden daher als Blob in IndexedDB
-// abgelegt (großer, lokaler Speicher – bleibt auf dem Gerät, kein Server). In S.clients
-// steht beim Video nur eine Referenz (mediaRef); der eigentliche Clip liegt hier.
-const MEDIA_DB = 'physiohome', MEDIA_STORE = 'media';
+// ===== LOKALER SPEICHER (IndexedDB) =====
+// Zwei Stores in einer Datenbank:
+//   'media' – Video-Blobs (zu groß für localStorage); in S.clients steht nur mediaRef.
+//   'kv'    – seit v22 AUCH die Klienten/Bibliothek/Programme selbst. IndexedDB erlaubt
+//             typischerweise mehrere GB statt der ~5 MB von localStorage -> deutlich mehr
+//             Patienten/Fotos. Alles bleibt lokal auf dem Gerät, kein Server.
+// Alte localStorage-Daten (ph_clients/ph_library/ph_programs) werden beim ersten Laden
+// automatisch einmalig hierher migriert (siehe load()).
+const MEDIA_DB = 'physiohome', MEDIA_STORE = 'media', KV_STORE = 'kv';
 let _mediaDbP = null;
 function mediaDb() {
   if (_mediaDbP) return _mediaDbP;
   _mediaDbP = new Promise((res, rej) => {
-    const rq = indexedDB.open(MEDIA_DB, 1);
-    rq.onupgradeneeded = () => { rq.result.createObjectStore(MEDIA_STORE); };
+    const rq = indexedDB.open(MEDIA_DB, 2);
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if (!db.objectStoreNames.contains(MEDIA_STORE)) db.createObjectStore(MEDIA_STORE);
+      if (!db.objectStoreNames.contains(KV_STORE)) db.createObjectStore(KV_STORE);
+    };
     rq.onsuccess = () => res(rq.result);
     rq.onerror = () => rej(rq.error);
   });
   return _mediaDbP;
+}
+// App-Daten (Objekte, kein JSON-Umweg – IndexedDB kann Objekte direkt speichern)
+function kvGet(key) {
+  return mediaDb().then(db => new Promise((res, rej) => {
+    const rq = db.transaction(KV_STORE, 'readonly').objectStore(KV_STORE).get(key);
+    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+  }));
+}
+function kvSet(obj) {
+  return mediaDb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(KV_STORE, 'readwrite');
+    const st = tx.objectStore(KV_STORE);
+    for (const [k, v] of Object.entries(obj)) st.put(v, k);
+    tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+  }));
 }
 function mediaPut(key, blob) {
   return mediaDb().then(db => new Promise((res, rej) => {
@@ -1911,6 +1969,7 @@ function renderSidebar() {
         <button class="btn btn-secondary btn-sm" id="btn-backup" style="flex:1;justify-content:center">${t('backupAll')}</button>
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;flex:1;justify-content:center">${t('restoreAll')}<input type="file" id="restore-inp" accept=".json" style="display:none"></label>
       </div>
+      <div class="side-storage" id="storage-info"></div>
     </div>
   </aside>`;
 }
@@ -2698,6 +2757,9 @@ function bind() {
   document.getElementById('btn-videos')?.addEventListener('click', () => doVideos(client()));
   document.getElementById('btn-email')?.addEventListener('click', () => doEmail(client()));
   document.getElementById('btn-dl-html')?.addEventListener('click', () => doDownload(client()));
+
+  // Speicheranzeige in der Seitenleiste füllen (asynchron, nur wenn vorhanden)
+  updateStorageInfo();
 }
 
 function openCamera() {
@@ -2958,9 +3020,14 @@ function setupSwipe() {
 }
 
 // ===== INIT =====
-load();
-render();
-setupSwipe();
+(async () => {
+  await load();   // Daten kommen asynchron aus IndexedDB (inkl. einmaliger Migration)
+  render();
+  setupSwipe();
+  // Persistenten Speicher anfragen: der Browser soll die lokalen Daten (Gesundheitsdaten!)
+  // nicht unter Speicherdruck automatisch aufräumen.
+  try { navigator.storage?.persist?.(); } catch {}
+})();
 
 // Service Worker für Offline-Betrieb registrieren (nur über http/https, nicht bei file://)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
