@@ -82,9 +82,11 @@
   .meter-labels{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:10px}
   .meter-labels .s{color:var(--safe)}
   .meter-labels .d{color:var(--danger)}
-  .meter-track{position:relative;height:14px;border-radius:8px;background:linear-gradient(90deg,var(--safe-bg),#F1EEE6 45%,#F1EEE6 55%,var(--danger-bg));border:1px solid var(--line)}
+  .meter-track{position:relative;height:14px;border-radius:8px;background:linear-gradient(90deg,var(--danger-bg),#F1EEE6 45%,#F1EEE6 55%,var(--safe-bg));border:1px solid var(--line)}
   #needle{position:absolute;top:-5px;left:50%;width:4px;height:22px;background:var(--ink);border-radius:3px;transform:translateX(-50%);transition:left .4s cubic-bezier(.4,1.3,.5,1)}
   #verdict{text-align:center;font-size:14px;font-weight:600;margin:14px 0 20px;min-height:20px;transition:color .3s}
+  #needle2{position:absolute;top:-5px;left:50%;width:4px;height:22px;background:var(--ink);border-radius:3px;transform:translateX(-50%);transition:left .4s cubic-bezier(.4,1.3,.5,1)}
+  #verdict2{text-align:center;font-size:14px;font-weight:600;margin:14px 0 20px;min-height:20px;transition:color .3s}
   .factors{display:grid;grid-template-columns:1fr 1fr;gap:9px}
   @media(max-width:420px){.factors{grid-template-columns:1fr}}
   .chip{display:flex;gap:8px;align-items:center;text-align:left;font-family:inherit;font-size:13px;line-height:1.35;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink-soft);cursor:pointer;transition:all .18s;font-weight:500}
@@ -278,7 +280,7 @@
     <h2>Die Waage in deinem Kopf</h2>
     <p class="intro">Tippe die Situationen an, die gerade auf dich zutreffen. Schau, wie die Nadel zwischen Sicherheit und Gefahr wandert. Ziel ist, sie Richtung Sicherheit zu bewegen.</p>
     <div class="tool" data-track>
-      <div class="meter-labels"><span class="s">◂ Sicherheit</span><span class="d">Gefahr ▸</span></div>
+      <div class="meter-labels"><span class="d">◂ Gefahr</span><span class="s">Sicherheit ▸</span></div>
       <div class="meter-track"><div id="needle"></div></div>
       <div id="verdict" style="color:var(--ink-mute)">Im Gleichgewicht</div>
       <div class="factors" id="factors"></div>
@@ -315,6 +317,9 @@
     <h2>Bau deine eigene Waage.</h2>
     <p class="intro">Jetzt kommt der wichtigste Teil – dein Teil. Schreib ganz konkret aus deinem Leben auf, was dich runterzieht und was dir guttut. Deine Einträge bleiben nur auf diesem Gerät gespeichert.</p>
     <div class="tool" data-track>
+      <div class="meter-labels"><span class="d">◂ Gefahr</span><span class="s">Sicherheit ▸</span></div>
+      <div class="meter-track"><div id="needle2"></div></div>
+      <div id="verdict2" style="color:var(--ink-mute)">Trag unten etwas ein – deine Waage bewegt sich mit.</div>
       <div class="myscale">
         <div class="mcol d">
           <h4>Was zieht mich runter?</h4>
@@ -471,7 +476,7 @@ factors.forEach((f,i)=>{
 function updateNeedle(){
   let sum=0;
   factors.forEach((f,i)=>{if(state[i])sum+=f.d;});
-  const pct=Math.max(6,Math.min(94,50+sum*5));
+  const pct=Math.max(6,Math.min(94,50-sum*5));
   document.getElementById('needle').style.left=pct+'%';
   const v=document.getElementById('verdict');
   if(sum>2){v.textContent='Dein Gehirn meldet eher Schmerz';v.style.color='var(--danger)';}
@@ -481,10 +486,24 @@ function updateNeedle(){
 
 /* ---------- Eigene Waage (Take-home, gespeichert) ---------- */
 const mine = {dim: load('sv_dim', []), sim: load('sv_sim', [])};
+function updateMineNeedle(){
+  const d=mine.dim.length, s=mine.sim.length, total=d+s;
+  const needle=document.getElementById('needle2'), v=document.getElementById('verdict2');
+  if(!total){
+    needle.style.left='50%';
+    v.textContent='Trag unten etwas ein – deine Waage bewegt sich mit.';
+    v.style.color='var(--ink-mute)';return;
+  }
+  const pct=Math.max(6,Math.min(94,50-((d-s)/total)*44));
+  needle.style.left=pct+'%';
+  if(d>s){v.textContent='Gerade überwiegt die Gefahr-Seite';v.style.color='var(--danger)';}
+  else if(s>d){v.textContent='Deine Sicherheits-Seite ist stärker';v.style.color='var(--safe)';}
+  else{v.textContent='Im Gleichgewicht';v.style.color='var(--ink-mute)';}
+}
 function renderMine(kind){
   const wrap=document.getElementById(kind+'-list');
   const arr=mine[kind];
-  if(!arr.length){wrap.innerHTML='<div class="empty">Noch nichts eingetragen.</div>';return;}
+  if(!arr.length){wrap.innerHTML='<div class="empty">Noch nichts eingetragen.</div>';updateMineNeedle();return;}
   wrap.innerHTML='';
   arr.forEach((txt,i)=>{
     const el=document.createElement('div');
@@ -494,6 +513,7 @@ function renderMine(kind){
     del.onclick=()=>{arr.splice(i,1);store('sv_'+kind,arr);renderMine(kind);};
     el.appendChild(span);el.appendChild(del);wrap.appendChild(el);
   });
+  updateMineNeedle();
 }
 function addMine(kind){
   const inp=document.getElementById(kind+'-in');
