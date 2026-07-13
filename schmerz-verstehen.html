@@ -552,28 +552,34 @@ stepIn.addEventListener('input',()=>{clearTimeout(sTimer);sTimer=setTimeout(save
 
 /* ---------- Quiz ---------- */
 const questions=[
-  {q:'Schmerz entsteht erst, wenn Gewebe wirklich beschädigt ist.',opts:['Richtig','Falsch'],correct:1,
-   fb:'Falsch. Schmerz kann schon warnen, bevor etwas kaputtgeht – er ist ein Schutzsignal, kein Schadensmesser.'},
-  {q:'Mehr Schmerz bedeutet immer mehr Schaden im Gewebe.',opts:['Richtig','Falsch'],correct:1,
-   fb:'Falsch. Schmerzstärke und Gewebeschaden hängen nicht eins zu eins zusammen – denk an den Papierschnitt.'},
-  {q:'„Ihr Rücken sieht aus wie der eines 80-Jährigen.“ – Verstärkt so ein Satz eher die Gefahr oder die Sicherheit?',opts:['Eher Gefahr','Eher Sicherheit'],correct:0,
-   fb:'Eher Gefahr. So ein Satz signalisiert Bedrohung und kann den Schmerz verstärken – auch wenn er gut gemeint ist.'},
-  {q:'Zu verstehen, warum es weh tut, und dass Bewegung sicher ist – Gefahr oder Sicherheit?',opts:['Eher Gefahr','Eher Sicherheit'],correct:1,
-   fb:'Eher Sicherheit. Verstehen beruhigt das Gehirn und hilft, den Alarm herunterzufahren.'},
-  {q:'An einem schlechten Tag mit mehr Schmerz ist es am besten, …',opts:['sanft und kleiner weiterzumachen','ganz zu pausieren, bis alles weg ist'],correct:0,
-   fb:'Sanft weitermachen. Ganz aufhören macht das System oft noch empfindlicher – halbiere lieber den letzten Schritt.'},
-  {q:'Die richtige Dosis Bewegung – nicht zu wenig, nicht zu viel – ist …',opts:['groß genug für Veränderung, klein genug, um nicht zu überfordern','so viel wie möglich, egal wie es sich anfühlt'],correct:0,
-   fb:'Genau. Groß genug, damit sich etwas verändert – klein genug, dass es nicht überfordert.'}
+  {q:'Was misst Schmerz am ehesten?',opts:['Wie viel im Gewebe kaputt ist','Wie viel Schutz dein Gehirn gerade für nötig hält','Wie stark ein Nerv gereizt wurde'],correct:1,
+   fb:'Schmerz misst nicht den Schaden, sondern wie viel Schutz dein Gehirn im Moment für nötig hält – ein Alarm, kein Schadensmesser.'},
+  {q:'Zwei Menschen haben auf dem Röntgenbild denselben Verschleiß. Einer hat starke Schmerzen, der andere gar keine. Was passt am besten?',opts:['Das Bild wurde falsch beurteilt','Der ohne Schmerz spürt es nur noch nicht','Schmerz hängt von vielen Dingen ab, nicht nur vom Bild'],correct:2,
+   fb:'Genau – Bilder und Schmerz passen oft nicht zusammen. Sehr viele Menschen ohne jede Schmerzen haben „Verschleiß“ im Bild.'},
+  {q:'Warum tut es bei manchen weh, obwohl längst alles verheilt ist?',opts:['Da muss noch etwas kaputt sein, das man übersehen hat','Das Schutzsystem ist überempfindlich geworden und schlägt zu früh Alarm','Der Schmerz ist nur eingebildet'],correct:1,
+   fb:'Das Schutzsystem ist empfindlicher geworden – der Alarm geht zu leicht los. Der Schmerz ist echt, aber er warnt vor einer Gefahr, die nicht mehr da ist.'},
+  {q:'Kann Schmerz auch ohne jede Verletzung echt sein?',opts:['Ja – Schmerz ist immer echt, auch ohne Schaden im Gewebe','Nein, dann bildet man ihn sich ein'],correct:0,
+   fb:'Schmerz ist immer echt. Er entsteht im Schutzsystem – dafür braucht es keinen sichtbaren Schaden.'},
+  {q:'„Ihr Rücken sieht aus wie der eines 80-Jährigen.“ – Was macht so ein Satz mit dem Schmerzsystem?',opts:['Er signalisiert Gefahr und kann Schmerz verstärken','Er ist neutral, nur eine Information','Er signalisiert Sicherheit und beruhigt'],correct:0,
+   fb:'Solche Sätze signalisieren Bedrohung und können den Alarm lauter stellen – auch wenn sie gut gemeint sind.'},
+  {q:'Welche Reaktion beruhigt das Schmerzsystem am ehesten (Sicherheit)?',opts:['Jede Belastung meiden und viel ausruhen','Verstehen, dass Bewegung sicher ist, und dich langsam wieder bewegen','Immer wieder nachschauen, was kaputt sein könnte'],correct:1,
+   fb:'Verstehen + sichere Bewegung senden „alles gut“ ans Gehirn. Vermeiden und ständiges Kontrollieren senden dagegen eher „Gefahr“.'},
+  {q:'Schlechter Tag, der Schmerz ist stärker. Was ist meist am klügsten?',opts:['Komplett pausieren, bis der Schmerz ganz weg ist','Genau wie geplant weitermachen und durchbeißen','Die letzte Dosis etwa halbieren und sanft dranbleiben'],correct:2,
+   fb:'Halbieren und dranbleiben. Ganz aufhören macht das System oft empfindlicher, Durchbeißen überfordert es – der Mittelweg ist der Trick.'},
+  {q:'Die richtige Dosis Bewegung – der „genau richtig“-Bereich – ist …',opts:['so viel wie möglich, egal wie es sich anfühlt','groß genug für Veränderung, klein genug, um nicht zu überfordern','so wenig wie möglich, um bloß nichts zu riskieren'],correct:1,
+   fb:'Groß genug, damit sich etwas verändert – klein genug, dass es nicht überfordert. Und dieser Bereich wird mit der Zeit größer.'}
 ];
 let qi=0,score=0,answered=false;
 const quiz=document.getElementById('quiz');
 function renderQ(){
   answered=false;
   const q=questions[qi];
+  const order=q.opts.map((_,i)=>i);
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
   quiz.innerHTML=`
     <div class="qcount">Frage ${qi+1} von ${questions.length}</div>
     <div class="qtext">${q.q}</div>
-    <div class="qopts">${q.opts.map((o,i)=>`<button class="qopt" data-i="${i}">${o}<span class="mark"></span></button>`).join('')}</div>
+    <div class="qopts">${order.map(i=>`<button class="qopt" data-i="${i}">${q.opts[i]}<span class="mark"></span></button>`).join('')}</div>
     <div class="qfeedback" id="fb"></div>
     <div class="qnav"><button class="btn" id="nextq" disabled>${qi===questions.length-1?'Ergebnis':'Weiter'}</button></div>`;
   quiz.querySelectorAll('.qopt').forEach(b=>b.onclick=()=>pick(b));
@@ -592,7 +598,8 @@ function pick(b){
   document.getElementById('nextq').disabled=false;
 }
 function renderResult(){
-  const msg = score>=5?'Stark! Du hast die Kernidee wirklich verstanden.':score>=3?'Gut dabei – schau dir die Fakten oben nochmal an.':'Kein Problem – lies die Karten oben in Ruhe nochmal durch.';
+  const n=questions.length;
+  const msg = score>=n-1?'Stark! Du hast die Kernidee wirklich verstanden.':score>=Math.ceil(n*0.6)?'Gut dabei – schau dir die Fakten oben nochmal an.':'Kein Problem – lies die Karten oben in Ruhe nochmal durch.';
   quiz.innerHTML=`<div class="qresult">
     <div class="score">${score}/${questions.length}</div>
     <div class="lbl">${msg}</div>
