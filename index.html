@@ -327,6 +327,23 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 /* Toast */
 .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(8px); background: #1C1E1D; color: #fff; padding: 13px 20px; border-radius: 12px; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.25); z-index: 300; opacity: 0; transition: all .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* "Rückgängig"-Knopf im Toast (nach dem Löschen) */
+.toast.undo { pointer-events: auto; }
+.toast-undo-btn { margin-left: 14px; background: none; border: none; color: #5EEAD4; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; padding: 0; }
+/* Serienbilder im Übungsformular: Foto-Kacheln mit Nummer + Entfernen, dazu "+"-Kachel */
+.media-photos { display: flex; flex-wrap: wrap; gap: 10px; }
+.media-ph { position: relative; width: 128px; height: 128px; border-radius: 12px; overflow: hidden; border: 1.5px solid var(--border); background: var(--surface-2); }
+.media-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media-ph-n { position: absolute; left: 6px; top: 6px; background: rgba(28,30,29,.72); color: #fff; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; }
+.media-ph-x { position: absolute; right: 6px; top: 6px; width: 26px; height: 26px; border: none; border-radius: 8px; background: rgba(28,30,29,.72); color: #fff; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.media-ph-add { display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--tx3); border-style: dashed; border-color: var(--border-2); cursor: pointer; }
+.media-hint { margin-top: 9px; font-size: 12px; color: var(--tx3); line-height: 1.5; }
+/* Foto-Zähler auf der Plan-Karte (Serienbilder) */
+.plan-thumb { position: relative; }
+.thumb-more { position: absolute; right: 4px; bottom: 4px; background: rgba(28,30,29,.75); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+/* Kamera: Serienaufnahme übernehmen + kurzer Blitz als Rückmeldung */
+.cam-done { background: var(--accent); color: #fff; border: none; border-radius: 999px; padding: 10px 18px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.cam-flash::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: .55; z-index: 3; pointer-events: none; }
 
 /* Storage warning */
 .storage-bar { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 15px; font-size: 13px; color: var(--tx2); margin-bottom: 16px; display: none; line-height: 1.5; }
@@ -817,6 +834,9 @@ const LANG = {
     media: 'Foto / Video',
     changeMedia: '🔄 Ändern',
     removeMedia: '✕ Entfernen',
+    morePhotos: 'Foto hinzufügen',
+    seriesHint: '💡 Mehrere Fotos zeigen den Bewegungsablauf – z. B. Ausgangs- und Endposition.',
+    maxPhotos: '⚠️ Maximal 4 Fotos pro Übung',
     save: '💾 Speichern',
     cancel: 'Abbrechen',
     delete: 'Löschen',
@@ -837,12 +857,15 @@ const LANG = {
     deleteExercise: 'Übung löschen',
     deleteExerciseQ: 'Möchtest du diese Übung löschen?',
     hasPhoto: '📷 Foto',
+    hasPhotos: n => `📷 ${n} Fotos`,
     hasVideo: '🎥 Video',
     exCount: n => `${n} Übung${n !== 1 ? 'en' : ''}`,
     lastExport: 'Letzter Export',
     never: 'Noch nie',
     saved: '✓ Gespeichert',
     deleted: '✓ Gelöscht',
+    undo: 'Rückgängig',
+    restored: '✓ Wiederhergestellt',
     downloaded: '✓ Datei heruntergeladen',
     newEx: 'Neue Übung',
     editEx: 'Übung bearbeiten',
@@ -952,6 +975,9 @@ const LANG = {
     media: 'Photo / Video',
     changeMedia: '🔄 Change',
     removeMedia: '✕ Remove',
+    morePhotos: 'Add photo',
+    seriesHint: '💡 Several photos show the movement – e.g. start and end position.',
+    maxPhotos: '⚠️ Max. 4 photos per exercise',
     save: '💾 Save',
     cancel: 'Cancel',
     delete: 'Delete',
@@ -972,12 +998,15 @@ const LANG = {
     deleteExercise: 'Delete Exercise',
     deleteExerciseQ: 'Are you sure you want to delete this exercise?',
     hasPhoto: '📷 Photo',
+    hasPhotos: n => `📷 ${n} photos`,
     hasVideo: '🎥 Video',
     exCount: n => `${n} exercise${n !== 1 ? 's' : ''}`,
     lastExport: 'Last export',
     never: 'Never',
     saved: '✓ Saved',
     deleted: '✓ Deleted',
+    undo: 'Undo',
+    restored: '✓ Restored',
     downloaded: '✓ File downloaded',
     newEx: 'New Exercise',
     editEx: 'Edit Exercise',
@@ -1038,6 +1067,7 @@ const S = {
   search: '',
   libSearch: '',      // Suchbegriff im Bibliotheks-Drawer
   pendingMedia: null,  // { data, type } – Arbeitskopie Medium im Formular
+  pendingExtra: [],    // Arbeitskopie Serienbilder (weitere Fotos als Daten-URLs)
   pendingTitle: '',    // Arbeitskopie Titel
   pendingDesc: '',     // Arbeitskopie Beschreibung
   pendingSets: '',     // Arbeitskopie Sätze
@@ -1047,6 +1077,7 @@ const S = {
   backupDismissed: false, // Backup-Erinnerung für diese Sitzung ausgeblendet
   fwd: null,           // gemerktes Ziel fürs Vorwärts-Wischen (zuletzt verlassene Ansicht)
   modal: null,
+  undo: null,          // schwebendes "Gelöscht – Rückgängig" ({ restore, purge, timer })
 };
 
 // Schlichte, einfarbige SVG-Icons (Strich-Stil). Färben sich über currentColor automatisch
@@ -1197,6 +1228,12 @@ function exMeta(ex, lang) {
   return parts;
 }
 
+// Alle Fotos einer Übung: Hauptbild + Serienbilder (Videos haben keine Fotoserie)
+function exPhotos(ex) {
+  if (!ex.mediaData || ex.mediaType?.startsWith('video')) return [];
+  return [ex.mediaData, ...(Array.isArray(ex.mediaExtra) ? ex.mediaExtra : [])];
+}
+
 // ===== EXPORT =====
 const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const CAN_SHARE_FILES = (() => {
@@ -1213,11 +1250,15 @@ function buildExportHtml(c) {
     ? '🎥 The video for this exercise is sent separately (e.g. via WhatsApp).'
     : '🎥 Das Video zu dieser Übung erhältst du separat (z. B. per WhatsApp).';
   const rows = c.exercises.map((ex, i) => {
+    const photos = exPhotos(ex);
     const mediaHtml = ex.mediaType?.startsWith('video')
       ? `<div style="background:#f4f4f5;border-radius:12px;padding:14px;color:#52525b;font-size:14px">${videoNote}</div>`
-      : (ex.mediaData
-          ? `<img src="${ex.mediaData}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:contain;display:block">`
-          : '');
+      : (photos.length > 1
+          // Serienbilder: 2er-Raster mit Schritt-Nummern
+          ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${photos.map((p, n) => `<div style="position:relative"><img src="${p}" alt="" style="width:100%;border-radius:10px;display:block"><span style="position:absolute;left:8px;top:8px;background:rgba(24,24,27,.75);color:#fff;font-size:12px;font-weight:600;min-width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center">${n + 1}</span></div>`).join('')}</div>`
+          : (photos.length
+              ? `<img src="${photos[0]}" alt="" style="width:100%;border-radius:12px;max-height:340px;object-fit:contain;display:block">`
+              : ''));
     const meta = exMeta(ex, c.language);
     const metaHtml = meta.length
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${meta.map(p => `<span style="font-size:13px;font-weight:600;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:3px 10px;border-radius:8px">${esc(p)}</span>`).join('')}</div>`
@@ -1286,8 +1327,12 @@ function buildPrintHtml(c) {
     : '🎥 Das Video kommt separat (z. B. per WhatsApp)';
   const rows = c.exercises.map((ex, i) => {
     let mediaHtml = '';
-    if (ex.mediaData && !ex.mediaType?.startsWith('video')) {
-      mediaHtml = `<div style="margin-top:14px"><img src="${ex.mediaData}" style="width:100%;border-radius:10px;max-height:400px;object-fit:contain;display:block"></div>`;
+    const photos = exPhotos(ex);
+    if (photos.length > 1) {
+      // Serienbilder: 2er-Raster mit Schritt-Nummern
+      mediaHtml = `<div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">${photos.map((p, n) => `<div style="position:relative"><img src="${p}" style="width:100%;border-radius:8px;display:block"><span style="position:absolute;left:7px;top:7px;background:rgba(24,24,27,.75);color:#fff;font-size:11px;font-weight:600;min-width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center">${n + 1}</span></div>`).join('')}</div>`;
+    } else if (photos.length) {
+      mediaHtml = `<div style="margin-top:14px"><img src="${photos[0]}" style="width:100%;border-radius:10px;max-height:400px;object-fit:contain;display:block"></div>`;
     } else if (ex.mediaType?.startsWith('video')) {
       mediaHtml = `<div style="margin-top:12px;color:#71717a;font-size:13px">${videoNote}</div>`;
     }
@@ -1429,6 +1474,22 @@ function mediaDel(key) {
   })).catch(() => {});
 }
 
+// Verwaiste Video-Clips beim Start entfernen (z. B. wenn die App während eines offenen
+// "Rückgängig"-Fensters geschlossen wurde): alles, worauf keine Übung mehr verweist.
+async function cleanOrphanMedia() {
+  try {
+    const used = new Set();
+    for (const ex of [...S.clients.flatMap(c => c.exercises), ...S.library, ...S.programs.flatMap(p => p.exercises)])
+      if (ex.mediaRef) used.add(ex.mediaRef);
+    const db = await mediaDb();
+    const keys = await new Promise((res, rej) => {
+      const rq = db.transaction(MEDIA_STORE, 'readonly').objectStore(MEDIA_STORE).getAllKeys();
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+    });
+    for (const k of keys) if (!used.has(k)) await mediaDel(k);
+  } catch {}
+}
+
 // Medien für eine Kopie duplizieren: Bilder sind Daten-URLs (kopieren sich von selbst),
 // Videos liegen in IndexedDB -> Blob unter NEUEM Schlüssel ablegen, damit Kopie und Original
 // unabhängig sind (Löschen des einen darf das andere nicht beschädigen).
@@ -1444,7 +1505,7 @@ async function dupMedia(ex) {
 // Eigenständige Kopie einer Übung (neue ID, dupliziertes Medium) – für Bibliothek <-> Klient.
 async function copyExercise(src) {
   const m = await dupMedia(src);
-  return { id: uid(), title: src.title, description: src.description || '', sets: src.sets || '', reps: src.reps || '', hold: src.hold || '', frequency: src.frequency || '', ...m };
+  return { id: uid(), title: src.title, description: src.description || '', sets: src.sets || '', reps: src.reps || '', hold: src.hold || '', frequency: src.frequency || '', mediaExtra: Array.isArray(src.mediaExtra) ? [...src.mediaExtra] : [], ...m };
 }
 
 // ===== PROGRAMM-VORLAGEN AUS DER LITERATUR =====
@@ -1693,24 +1754,26 @@ function buildPdfBlob(c) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
     const metaLines = metaText ? doc.splitTextToSize(metaText, innerW) : [];
 
-    let img = null;
-    if (ex.mediaData && !ex.mediaType?.startsWith('video')) {
+    // Fotos: ein Bild groß, Serienbilder nebeneinander (gemeinsame Höhe, zentriert)
+    const IGAP = 8;
+    let imgs = [];
+    const photos = exPhotos(ex);
+    if (photos.length) {
       try {
-        const p = doc.getImageProperties(ex.mediaData);
-        let w = innerW, h = p.height * (w / p.width);
-        const maxH = 300;
-        if (h > maxH) { w = w * (maxH / h); h = maxH; }
-        img = { w, h, fmt: p.fileType || 'JPEG' };
-      } catch (e) { img = null; }
+        const props = photos.map(d => { const p = doc.getImageProperties(d); return { data: d, ar: p.width / p.height, fmt: p.fileType || 'JPEG' }; });
+        const capH = props.length === 1 ? 300 : 220;
+        const h = Math.min(capH, (innerW - IGAP * (props.length - 1)) / props.reduce((s, p) => s + p.ar, 0));
+        imgs = props.map(p => ({ ...p, w: h * p.ar, h }));
+      } catch (e) { imgs = []; }
     }
-    const isVideo = !img && ex.mediaType?.startsWith('video');
+    const isVideo = !imgs.length && ex.mediaType?.startsWith('video');
 
     doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
     const descLines = ex.description ? doc.splitTextToSize(ex.description, innerW) : [];
 
     let cardH = PAD + titleH;
     if (metaLines.length) cardH += 8 + metaLines.length * 13;
-    if (img) cardH += GAP + img.h;
+    if (imgs.length) cardH += GAP + imgs[0].h;
     else if (isVideo) cardH += GAP + 14;
     if (descLines.length) cardH += GAP + descLines.length * 15;
     cardH += PAD;
@@ -1744,11 +1807,22 @@ function buildPdfBlob(c) {
       cy += metaLines.length * 13;
     }
 
-    // Bild / Video-Hinweis
-    if (img) {
+    // Bild(er) / Video-Hinweis
+    if (imgs.length) {
       cy += GAP;
-      doc.addImage(ex.mediaData, img.fmt, M + PAD + (innerW - img.w) / 2, cy, img.w, img.h);
-      cy += img.h;
+      const rowW = imgs.reduce((s, im) => s + im.w, 0) + IGAP * (imgs.length - 1);
+      let ix = M + PAD + (innerW - rowW) / 2;
+      imgs.forEach((im, n) => {
+        doc.addImage(im.data, im.fmt, ix, cy, im.w, im.h);
+        if (imgs.length > 1) {                 // Schritt-Nummer auf Serienbildern
+          doc.setFillColor(24, 24, 27);
+          doc.roundedRect(ix + 5, cy + 5, 16, 16, 5, 5, 'F');
+          doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+          doc.text(String(n + 1), ix + 13, cy + 16, { align: 'center' });
+        }
+        ix += im.w + IGAP;
+      });
+      cy += imgs[0].h;
     } else if (isVideo) {
       cy += GAP;
       doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(113, 113, 122);
@@ -2004,7 +2078,10 @@ function renderClientMain() {
   const list = n
     ? `<div class="ex-list">${c.exercises.map((ex) => {
         const isVid = ex.mediaType?.startsWith('video');
-        const thumb = (ex.mediaData && !isVid) ? `<img src="${ex.mediaData}" alt="">` : (isVid ? SVG_VIDEO : SVG_EXTILE);
+        const nPh = exPhotos(ex).length;   // Serienbilder: "+n" auf dem Vorschaubild
+        const thumb = (ex.mediaData && !isVid)
+          ? `<img src="${ex.mediaData}" alt="">${nPh > 1 ? `<span class="thumb-more">+${nPh - 1}</span>` : ''}`
+          : (isVid ? SVG_VIDEO : SVG_EXTILE);
         return `
         <div class="plan-card" data-exid="${ex.id}" title="${S.lang==='de'?'Antippen zum Bearbeiten':'Tap to edit'}">
           <div class="plan-thumb">${thumb}</div>
@@ -2080,7 +2157,7 @@ function renderLibrary() {
             <div class="ex-title">${esc(ex.title)}</div>
             ${metaHtml}
             ${ex.description ? `<div class="ex-desc">${esc(ex.description)}</div>` : ''}
-            ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : t('hasPhoto')}</div>` : ''}
+            ${(ex.mediaData || ex.mediaRef) ? `<div class="ex-badge">${ex.mediaType?.startsWith('video') ? t('hasVideo') : (exPhotos(ex).length > 1 ? t('hasPhotos', exPhotos(ex).length) : t('hasPhoto'))}</div>` : ''}
           </div>
           <div class="ex-actions">
             <button class="ico-btn del" data-libdel="${ex.id}" title="${t('delete')}">${ICONS.trash}</button>
@@ -2100,19 +2177,27 @@ function renderLibrary() {
 }
 
 function renderExForm() {
-  const media = S.pendingMedia ? (S.pendingMedia.data || S.pendingMedia.url) : null;
-  const mediaType = S.pendingMedia?.type;
-  const mediaHtml = media
-    ? `<div class="media-preview">${mediaType?.startsWith('video')
-        ? `<video src="${media}" controls style="max-height:260px"></video>`
-        : `<img src="${media}" alt="preview">`}
-      </div>
+  const pm = S.pendingMedia;
+  const isVid = pm?.type?.startsWith('video');
+  // Fotoserie: Hauptbild + weitere Fotos (S.pendingExtra), als Kacheln mit Nummer + Entfernen
+  const photos = (pm && !isVid && pm.data) ? [pm.data, ...S.pendingExtra] : [];
+  let mediaHtml;
+  if (isVid) {
+    mediaHtml = `<div class="media-preview"><video src="${pm.url || pm.data}" controls style="max-height:260px"></video></div>
       <div class="media-actions">
         <label class="btn btn-secondary btn-sm" style="cursor:pointer">${t('changeMedia')}<input type="file" id="media-inp" accept="${SHOW_VIDEO?'image/*,video/*':'image/*'}" style="display:none"></label>
         <button class="btn btn-danger btn-sm" id="btn-rm-media">${t('removeMedia')}</button>
-      </div>`
-    : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      </div>`;
+  } else if (photos.length) {
+    mediaHtml = `<div class="media-photos">
+        ${photos.map((p, i) => `<div class="media-ph"><img src="${p}" alt=""><span class="media-ph-n">${i + 1}</span><button type="button" class="media-ph-x" data-phdel="${i}" title="${t('removeMedia')}">✕</button></div>`).join('')}
+        ${photos.length < MAX_PHOTOS ? `<label class="media-ph media-ph-add" title="${t('morePhotos')}">＋<input type="file" id="media-inp-more" accept="image/*" multiple style="display:none"></label>` : ''}
+      </div>
+      <div class="media-hint">${t('seriesHint')}</div>
+      ${IS_MOBILE ? '' : `<div class="media-actions" style="margin-top:10px"><button class="btn btn-secondary btn-sm" id="btn-open-cam">📷 ${S.lang==='de'?'Kamera':'Camera'}</button></div>`}`;
+  } else {
+    mediaHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${IS_MOBILE
           ? (SHOW_VIDEO
               ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
               <label class="btn btn-primary btn-full" style="cursor:pointer;justify-content:center;padding:14px">
@@ -2131,9 +2216,10 @@ function renderExForm() {
         }
         <label class="btn btn-secondary btn-full" style="cursor:pointer;justify-content:center;padding:14px">
           🖼 ${S.lang==='de'?'Galerie':'Gallery'}
-          <input type="file" id="media-inp" accept="${SHOW_VIDEO?'image/*,video/*':'image/*'}" style="display:none">
+          <input type="file" id="media-inp" accept="${SHOW_VIDEO?'image/*,video/*':'image/*'}" multiple style="display:none">
         </label>
       </div>`;
+  }
   return `
   <div class="page-head"><h1>${S.exId ? t('editEx') : t('newEx')}</h1>${S.exCtx === 'library' ? `<p>📚 ${t('libraryTitle')}</p>` : ''}</div>
   <div class="card card-pad">
@@ -2461,11 +2547,14 @@ function bindModal() {
     }));
     document.querySelectorAll('[data-progdel]').forEach(b => b.addEventListener('click', () => {
       const pid = b.dataset.progdel;
-      S.modal = { type: 'confirm', title: t('progDelete'), text: t('progDeleteQ'), onOk: async () => {
-        const p = S.programs.find(x => x.id === pid);
-        if (p) for (const ex of p.exercises) if (ex.mediaRef) await mediaDel(ex.mediaRef);
-        S.programs = S.programs.filter(x => x.id !== pid);
-        save(); render(); toast(t('deleted'));
+      S.modal = { type: 'confirm', title: t('progDelete'), text: t('progDeleteQ'), onOk: () => {
+        const idx = S.programs.findIndex(x => x.id === pid);
+        if (idx < 0) return;
+        const [p] = S.programs.splice(idx, 1);
+        save(); render();
+        undoableDelete(
+          () => S.programs.splice(Math.min(idx, S.programs.length), 0, p),
+          () => { for (const ex of p.exercises) if (ex.mediaRef) mediaDel(ex.mediaRef); });
       }};
       render();
     }));
@@ -2517,11 +2606,14 @@ function bindModal() {
     document.getElementById('m-name').addEventListener('keydown', e => e.key === 'Enter' && confirm());
     document.getElementById('m-delete')?.addEventListener('click', () => {
       const cid = S.modal.clientId;
-      S.modal = { type: 'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
-        const c = S.clients.find(x => x.id === cid);
-        if (c) for (const ex of c.exercises) if (ex.mediaRef) await mediaDel(ex.mediaRef);
-        S.clients = S.clients.filter(x => x.id !== cid);
-        save(); if (S.clientId === cid) S.clientId = null; S.view = 'home'; render(); toast(t('deleted'));
+      S.modal = { type: 'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: () => {
+        const idx = S.clients.findIndex(x => x.id === cid);
+        if (idx < 0) return;
+        const [c] = S.clients.splice(idx, 1);
+        save(); if (S.clientId === cid) S.clientId = null; S.view = 'home'; render();
+        undoableDelete(
+          () => { S.clients.splice(Math.min(idx, S.clients.length), 0, c); S.clientId = c.id; },
+          () => { for (const ex of c.exercises) if (ex.mediaRef) mediaDel(ex.mediaRef); });
       }};
       render();
     });
@@ -2590,11 +2682,14 @@ function bind() {
   document.getElementById('edit-client-head')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('goal-edit')?.addEventListener('click', () => { S.modal = { type: 'new-client', clientId: S.clientId }; render(); });
   document.getElementById('btn-del-client')?.addEventListener('click', () => {
-    S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: async () => {
-      const c = client();
-      if (c) for (const ex of c.exercises) if (ex.mediaRef) await mediaDel(ex.mediaRef);
-      S.clients = S.clients.filter(c => c.id !== S.clientId);
-      save(); S.clientId = null; S.view = 'home'; render(); toast(t('deleted'));
+    S.modal = { type:'confirm', title: t('deleteClient'), text: t('deleteClientQ'), onOk: () => {
+      const idx = S.clients.findIndex(c => c.id === S.clientId);
+      if (idx < 0) return;
+      const [c] = S.clients.splice(idx, 1);
+      save(); S.clientId = null; S.view = 'home'; render();
+      undoableDelete(
+        () => { S.clients.splice(Math.min(idx, S.clients.length), 0, c); S.clientId = c.id; },
+        () => { for (const ex of c.exercises) if (ex.mediaRef) mediaDel(ex.mediaRef); });
     }};
     render();
   });
@@ -2610,6 +2705,7 @@ function bind() {
     S.pendingReps = ex?.reps || '';
     S.pendingHold = ex?.hold || '';
     S.pendingFreq = ex?.frequency || '';
+    S.pendingExtra = (!ex?.mediaType?.startsWith('video') && Array.isArray(ex?.mediaExtra)) ? [...ex.mediaExtra] : [];
     if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
       // Video-Clip aus IndexedDB holen und als Vorschau anzeigen (blob:null = unverändert)
       const blob = await mediaGet(ex.mediaRef);
@@ -2630,11 +2726,15 @@ function bind() {
   document.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
     const eid = b.dataset.del;
-    S.modal = { type:'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: async () => {
-      const ex = client().exercises.find(x => x.id === eid);
-      if (ex?.mediaRef) await mediaDel(ex.mediaRef);
-      client().exercises = client().exercises.filter(e => e.id !== eid);
-      save(); render(); toast(t('deleted'));
+    S.modal = { type:'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: () => {
+      const c = client(); if (!c) return;
+      const idx = c.exercises.findIndex(x => x.id === eid);
+      if (idx < 0) return;
+      const [ex] = c.exercises.splice(idx, 1);
+      save(); render();
+      undoableDelete(
+        () => c.exercises.splice(Math.min(idx, c.exercises.length), 0, ex),
+        () => { if (ex.mediaRef) mediaDel(ex.mediaRef); });
     }};
     render();
   }));
@@ -2713,6 +2813,7 @@ function bind() {
     S.pendingReps = ex?.reps || '';
     S.pendingHold = ex?.hold || '';
     S.pendingFreq = ex?.frequency || '';
+    S.pendingExtra = (!ex?.mediaType?.startsWith('video') && Array.isArray(ex?.mediaExtra)) ? [...ex.mediaExtra] : [];
     if (ex?.mediaType?.startsWith('video') && ex.mediaRef) {
       const blob = await mediaGet(ex.mediaRef);
       S.pendingMedia = blob ? { type: ex.mediaType, ref: ex.mediaRef, url: URL.createObjectURL(blob), blob: null } : null;
@@ -2728,26 +2829,40 @@ function bind() {
   document.querySelectorAll('[data-libdel]').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
     const eid = b.dataset.libdel;
-    S.modal = { type: 'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: async () => {
-      const ex = S.library.find(x => x.id === eid);
-      if (ex?.mediaRef) await mediaDel(ex.mediaRef);
-      S.library = S.library.filter(e => e.id !== eid);
-      save(); render(); toast(t('deleted'));
+    S.modal = { type: 'confirm', title: t('deleteExercise'), text: t('deleteExerciseQ'), onOk: () => {
+      const idx = S.library.findIndex(x => x.id === eid);
+      if (idx < 0) return;
+      const [ex] = S.library.splice(idx, 1);
+      save(); render();
+      undoableDelete(
+        () => S.library.splice(Math.min(idx, S.library.length), 0, ex),
+        () => { if (ex.mediaRef) mediaDel(ex.mediaRef); });
     }};
     render();
   }));
 
-  // Exercise form
-  document.getElementById('media-inp')?.addEventListener('change', e => { const f = e.target.files[0]; if (f) readMedia(f); });
+  // Exercise form – Galerie/"+" erlauben mehrere Bilder auf einmal; value zurücksetzen,
+  // damit dieselbe Datei direkt nochmal wählbar ist.
+  const onPickMedia = e => { if (e.target.files?.length) readMediaFiles(e.target.files); e.target.value = ''; };
+  document.getElementById('media-inp')?.addEventListener('change', onPickMedia);
+  document.getElementById('media-inp-more')?.addEventListener('change', onPickMedia);
+  document.getElementById('media-inp-cam')?.addEventListener('change', onPickMedia);
+  document.getElementById('media-inp-vid')?.addEventListener('change', onPickMedia);
   document.getElementById('btn-open-cam')?.addEventListener('click', openCamera);
-  document.getElementById('media-inp-cam')?.addEventListener('change', e => { const f = e.target.files[0]; if (f) readMedia(f); });
-  document.getElementById('media-inp-vid')?.addEventListener('change', e => { const f = e.target.files[0]; if (f) readMedia(f); });
   document.getElementById('btn-rm-media')?.addEventListener('click', () => {
     captureForm();
     if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
-    S.pendingMedia = null;
+    S.pendingMedia = null; S.pendingExtra = [];
     render();
   });
+  // Einzelnes Foto aus der Serie entfernen (beim Hauptbild rückt das nächste nach)
+  document.querySelectorAll('[data-phdel]').forEach(b => b.addEventListener('click', () => {
+    captureForm();
+    const i = +b.dataset.phdel;
+    if (i === 0) S.pendingMedia = S.pendingExtra.length ? { data: S.pendingExtra.shift(), type: 'image/jpeg' } : null;
+    else S.pendingExtra.splice(i - 1, 1);
+    render();
+  }));
   document.getElementById('btn-save-ex')?.addEventListener('click', saveEx);
   document.getElementById('btn-cancel-form')?.addEventListener('click', () => { const back = S.exCtx === 'library' ? 'library' : 'home'; clearForm(); S.view = back; render(); });
 
@@ -2770,14 +2885,16 @@ function openCamera() {
   let camMode = 'photo';
   let recording = false;
   let facingMode = 'environment';
+  let shots = [];   // Serienaufnahme: Kamera bleibt offen, Fotos sammeln sich hier
 
   const overlay = document.createElement('div');
   overlay.className = 'cam-overlay';
   overlay.innerHTML = `
     <video id="cam-preview" class="cam-video" autoplay playsinline muted></video>
     <div class="cam-top">
-      <button class="cam-icon" id="cam-close" title="${isDE?'Schließen':'Close'}">✕</button>
+      <button class="cam-icon" id="cam-close" title="${isDE?'Schließen (verwirft Fotos)':'Close (discards photos)'}">✕</button>
       <div id="cam-rec-status" class="cam-status"></div>
+      <button class="cam-done" id="cam-done" style="display:none"></button>
       <button class="cam-icon" id="cam-flip" title="${isDE?'Kamera wechseln':'Switch camera'}">🔄</button>
     </div>
     <div class="cam-bottom">
@@ -2800,6 +2917,12 @@ function openCamera() {
 
   document.getElementById('cam-close').addEventListener('click', stopStream);
 
+  // Serienaufnahme abschließen: alle Fotos übernehmen (erstes = Hauptbild)
+  document.getElementById('cam-done').addEventListener('click', () => {
+    stopStream();
+    if (shots.length) addPhotos(shots);
+  });
+
   if (SHOW_VIDEO) {
     document.getElementById('mode-photo').addEventListener('click', () => {
       if (recording) return;
@@ -2818,9 +2941,14 @@ function openCamera() {
 
   shutter.addEventListener('click', () => {
     if (camMode === 'photo') {
-      const dataUrl = scaleToJpeg(video, video.videoWidth, video.videoHeight);
-      stopStream();
-      applyMedia(dataUrl, 'image/jpeg');
+      // Foto in die Serie aufnehmen – Kamera bleibt für weitere Aufnahmen offen
+      shots.push(scaleToJpeg(video, video.videoWidth, video.videoHeight));
+      overlay.classList.add('cam-flash');
+      setTimeout(() => overlay.classList.remove('cam-flash'), 160);
+      recStatus.textContent = `${shots.length} ${isDE ? 'Foto' : 'photo'}${shots.length > 1 ? 's' : ''}`;
+      const done = document.getElementById('cam-done');
+      done.style.display = '';
+      done.textContent = `✓ ${isDE ? 'Übernehmen' : 'Use'} (${shots.length})`;
     } else {
       if (!recording) {
         recordedChunks = [];
@@ -2886,11 +3014,24 @@ function captureForm() {
   if (fr) S.pendingFreq = fr.value;
 }
 
-function applyMedia(dataUrl, mimeType) {
+// Fotos übernehmen (auch mehrere auf einmal): das erste Bild wird Hauptbild, weitere
+// werden Serienbilder – bis maximal MAX_PHOTOS Fotos pro Übung. Ersetzt ein evtl. Video.
+const MAX_PHOTOS = 4;
+function addPhotos(dataUrls) {
   captureForm();                       // Eingaben bewahren!
-  if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
-  S.pendingMedia = { data: dataUrl, type: mimeType };
+  let full = false;
+  for (const d of dataUrls) {
+    if (!d) continue;
+    if (!S.pendingMedia || S.pendingMedia.type?.startsWith('video') || !S.pendingMedia.data) {
+      if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
+      S.pendingMedia = { data: d, type: 'image/jpeg' };
+      S.pendingExtra = [];
+    } else if (1 + S.pendingExtra.length < MAX_PHOTOS) {
+      S.pendingExtra.push(d);
+    } else { full = true; }
+  }
   render();
+  if (full) toast(t('maxPhotos'));
 }
 
 // Video übernehmen: Blob im Speicher halten + Vorschau-URL erzeugen (erst beim Speichern
@@ -2900,6 +3041,7 @@ function applyVideo(blob, mimeType) {
   const prevRef = S.pendingMedia?.ref || null;
   if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
   S.pendingMedia = { type: mimeType, blob, url: URL.createObjectURL(blob), ref: prevRef };
+  S.pendingExtra = [];   // Video hat keine Fotoserie
   render();
 }
 
@@ -2935,18 +3077,21 @@ function downscaleImageFile(file) {
   });
 }
 
-function readMedia(file) {
-  if (file.type && file.type.startsWith('image/')) {
-    downscaleImageFile(file).then(d => { if (d) applyMedia(d, 'image/jpeg'); });
-  } else {
-    // Video o.Ä.: als Blob übernehmen (kommt beim Speichern in IndexedDB)
-    applyVideo(file, file.type || 'video/mp4');
+// Ausgewählte Dateien übernehmen: Bilder (auch mehrere) werden verkleinert und der
+// Fotoserie hinzugefügt; alles andere (Video o.Ä.) wird als Blob übernommen.
+function readMediaFiles(files) {
+  const arr = Array.from(files);
+  const imgs = arr.filter(f => f.type && f.type.startsWith('image/'));
+  if (imgs.length) {
+    Promise.all(imgs.map(downscaleImageFile)).then(ds => addPhotos(ds));
+  } else if (arr.length) {
+    applyVideo(arr[0], arr[0].type || 'video/mp4');
   }
 }
 
 function clearForm() {
   if (S.pendingMedia?.url) URL.revokeObjectURL(S.pendingMedia.url);
-  S.exId = null; S.pendingMedia = null; S.pendingTitle = ''; S.pendingDesc = '';
+  S.exId = null; S.pendingMedia = null; S.pendingExtra = []; S.pendingTitle = ''; S.pendingDesc = '';
   S.pendingSets = ''; S.pendingReps = ''; S.pendingHold = ''; S.pendingFreq = '';
   S.exCtx = 'client';
 }
@@ -2963,8 +3108,8 @@ async function saveEx() {
   const isLib = S.exCtx === 'library';
   const pm = S.pendingMedia;
 
-  // Medien aufbereiten: Bilder als Daten-URL (localStorage), Videos als Blob (IndexedDB)
-  let mediaData = null, mediaType = pm?.type || null, mediaRef = null;
+  // Medien aufbereiten: Bilder als Daten-URLs (inkl. Serienbilder), Videos als Blob (IndexedDB)
+  let mediaData = null, mediaType = pm?.type || null, mediaRef = null, mediaExtra = [];
   if (pm) {
     if (pm.type?.startsWith('video')) {
       mediaRef = pm.ref || ('m_' + uid());
@@ -2974,6 +3119,7 @@ async function saveEx() {
       }
     } else {
       mediaData = pm.data || null;
+      if (mediaData) mediaExtra = S.pendingExtra.slice(0, MAX_PHOTOS - 1);
     }
   }
 
@@ -2982,18 +3128,50 @@ async function saveEx() {
     if (ex.mediaRef && ex.mediaRef !== mediaRef) await mediaDel(ex.mediaRef); // alten Clip löschen
     ex.title = title; ex.description = desc;
     ex.sets = sets; ex.reps = reps; ex.hold = hold; ex.frequency = frequency;
-    ex.mediaData = mediaData; ex.mediaType = mediaType; ex.mediaRef = mediaRef;
+    ex.mediaData = mediaData; ex.mediaType = mediaType; ex.mediaRef = mediaRef; ex.mediaExtra = mediaExtra;
   } else {
-    const item = { id: uid(), title, description: desc, sets, reps, hold, frequency, mediaData, mediaType, mediaRef };
+    const item = { id: uid(), title, description: desc, sets, reps, hold, frequency, mediaData, mediaType, mediaRef, mediaExtra };
     (isLib ? S.library : client().exercises).push(item);
   }
   const ok = save(); S.view = isLib ? 'library' : 'home'; clearForm(); render(); toast(ok ? t('saved') : t('saveFailed'));
 }
 
-function toast(msg) {
+let toastTimer = null;
+function toast(msg, ms = 2200) {
   const el = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  el.classList.remove('undo');
   el.textContent = msg; el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ===== LÖSCHEN MIT RÜCKGÄNGIG =====
+// Gelöschtes bleibt (samt Video-Clips in IndexedDB) erhalten, bis das Rückgängig-Fenster
+// abläuft oder das nächste Löschen folgt – erst dann räumt purge() die Clips endgültig weg.
+// restore() fügt das Objekt an der alten Stelle wieder ein. Wird die App mitten im Fenster
+// geschlossen, räumt cleanOrphanMedia() beim nächsten Start verwaiste Clips auf.
+const UNDO_MS = 6000;
+function undoableDelete(restore, purge) {
+  finalizeUndo();
+  S.undo = { restore, purge, timer: setTimeout(finalizeUndo, UNDO_MS) };
+  const el = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  el.innerHTML = `${esc(t('deleted'))}<button class="toast-undo-btn" id="toast-undo">${esc(t('undo'))}</button>`;
+  el.classList.add('show', 'undo');
+  document.getElementById('toast-undo').addEventListener('click', () => {
+    if (!S.undo) return;
+    const u = S.undo; S.undo = null;
+    clearTimeout(u.timer);
+    u.restore();
+    const ok = save(); render(); toast(ok ? t('restored') : t('saveFailed'));
+  });
+  toastTimer = setTimeout(() => el.classList.remove('show', 'undo'), UNDO_MS);
+}
+function finalizeUndo() {
+  if (!S.undo) return;
+  const u = S.undo; S.undo = null;
+  clearTimeout(u.timer);
+  u.purge?.();
 }
 
 // Wischgesten am Tablet/Handy: nach rechts wischen = zurück, nach links = vor.
@@ -3024,6 +3202,7 @@ function setupSwipe() {
   await load();   // Daten kommen asynchron aus IndexedDB (inkl. einmaliger Migration)
   render();
   setupSwipe();
+  cleanOrphanMedia();   // verwaiste Video-Clips aufräumen (läuft im Hintergrund)
   // Persistenten Speicher anfragen: der Browser soll die lokalen Daten (Gesundheitsdaten!)
   // nicht unter Speicherdruck automatisch aufräumen.
   try { navigator.storage?.persist?.(); } catch {}
