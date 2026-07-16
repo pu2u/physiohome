@@ -879,6 +879,16 @@ const LANG = {
     delClientBtn: '🗑 Klient löschen',
     backupAll: '💾 Alle Daten sichern',
     restoreAll: '📂 Backup wiederherstellen',
+    practiceBtn: '🏥 Praxisdaten',
+    practiceTitle: 'Praxisdaten',
+    practiceNote: 'Erscheint unten in jedem PDF- und HTML-Export – inklusive „Schreib mir per WhatsApp“-Link für Rückfragen. Leer lassen = kein Kontaktblock.',
+    practiceName: 'Praxis / Name',
+    practiceNamePh: 'z.B. Physiotherapie Müller',
+    practicePhone: 'WhatsApp-Nummer',
+    practicePhonePh: 'z.B. +43 660 1234567',
+    practicePhoneHint: 'Mit Ländervorwahl (+43 …), damit der WhatsApp-Link am Handy des Klienten funktioniert.',
+    practiceEmail: 'E-Mail',
+    practiceEmailPh: 'z.B. praxis@beispiel.at',
     restoreConfirm: 'Backup wiederherstellen? Bestehende Daten werden überschrieben.',
     restoreOk: '✓ Backup wiederhergestellt',
     restoreErr: 'Fehler beim Laden – falsche Datei?',
@@ -1021,6 +1031,16 @@ const LANG = {
     delClientBtn: '🗑 Delete Client',
     backupAll: '💾 Backup all data',
     restoreAll: '📂 Restore backup',
+    practiceBtn: '🏥 Practice details',
+    practiceTitle: 'Practice details',
+    practiceNote: 'Shown at the bottom of every PDF and HTML export – including a "Message me on WhatsApp" link for questions. Leave empty for no contact block.',
+    practiceName: 'Practice / Name',
+    practiceNamePh: 'e.g. Miller Physiotherapy',
+    practicePhone: 'WhatsApp number',
+    practicePhonePh: 'e.g. +43 660 1234567',
+    practicePhoneHint: 'Include the country code (+43 …) so the WhatsApp link works on the client\'s phone.',
+    practiceEmail: 'Email',
+    practiceEmailPh: 'e.g. practice@example.com',
     restoreConfirm: 'Restore backup? Existing data will be overwritten.',
     restoreOk: '✓ Backup restored',
     restoreErr: 'Error loading file – wrong format?',
@@ -1078,6 +1098,7 @@ const S = {
   pendingReps: '',     // Arbeitskopie Wiederholungen
   pendingHold: '',     // Arbeitskopie Haltezeit
   pendingFreq: '',     // Arbeitskopie Häufigkeit
+  practice: { name: '', phone: '', email: '' }, // Praxis-Kontakt für die Export-Fußzeile
   backupDismissed: false, // Backup-Erinnerung für diese Sitzung ausgeblendet
   fwd: null,           // gemerktes Ziel fürs Vorwärts-Wischen (zuletzt verlassene Ansicht)
   modal: null,
@@ -1131,7 +1152,8 @@ function esc(s) {
 async function load() {
   let fromDb = false;
   try {
-    const [c, l, p] = await Promise.all([kvGet('clients'), kvGet('library'), kvGet('programs')]);
+    const [c, l, p, pr] = await Promise.all([kvGet('clients'), kvGet('library'), kvGet('programs'), kvGet('practice')]);
+    if (pr) S.practice = pr;
     if (c) { S.clients = c; S.library = l || []; S.programs = p || []; fromDb = true; }
   } catch {}
   if (fromDb) return;
@@ -1151,7 +1173,7 @@ async function load() {
 // Warnbanner + Fehlermeldung – der Nutzer erfährt also weiterhin von JEDEM fehlgeschlagenen
 // Speichern (Bug K2). Die Aufrufer-Konvention `const ok = save(); toast(ok ? ...)` bleibt gültig.
 function save() {
-  kvSet({ clients: S.clients, library: S.library, programs: S.programs })
+  kvSet({ clients: S.clients, library: S.library, programs: S.programs, practice: S.practice })
     .then(() => { const w = document.getElementById('storage-warn'); if (w) w.style.display = 'none'; })
     .catch(() => {
       const w = document.getElementById('storage-warn');
@@ -1192,7 +1214,7 @@ function backupDue() {
   if (!last) return true;
   return daysSince(last) >= 7;
 }
-// Vollständiges Backup (v4, mit Video-Clips aus IndexedDB) als JSON-Datei herunterladen.
+// Vollständiges Backup (v5, mit Video-Clips aus IndexedDB + Praxisdaten) als JSON-Datei herunterladen.
 async function doBackup() {
   const media = {};
   // Video-Clips aller Klienten, der Bibliothek UND der Programm-Vorlagen einsammeln
@@ -1207,7 +1229,7 @@ async function doBackup() {
       if (blob) media[ex.mediaRef] = await blobToDataUrl(blob);
     }
   }
-  const data = JSON.stringify({ version: 4, date: new Date().toISOString(), clients: S.clients, library: S.library, programs: S.programs, media }, null, 2);
+  const data = JSON.stringify({ version: 5, date: new Date().toISOString(), clients: S.clients, library: S.library, programs: S.programs, practice: S.practice, media }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const dateStr = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `PhysioHome_Backup_${dateStr}.json`);
@@ -1237,6 +1259,17 @@ function exPhotos(ex) {
   if (!ex.mediaData || ex.mediaType?.startsWith('video')) return [];
   return [ex.mediaData, ...(Array.isArray(ex.mediaExtra) ? ex.mediaExtra : [])];
 }
+
+// wa.me-Link aus der Praxis-Telefonnummer ('+'/'00' und Trennzeichen entfernen);
+// null, wenn keine brauchbare Nummer hinterlegt ist.
+function waLink(phone) {
+  let n = String(phone || '').replace(/[^\d+]/g, '');
+  if (n.startsWith('+')) n = n.slice(1);
+  else if (n.startsWith('00')) n = n.slice(2);
+  return n.length >= 6 ? 'https://wa.me/' + n : null;
+}
+// true, wenn Praxisdaten hinterlegt sind (steuert den Kontaktblock in den Exporten)
+function hasPractice() { const p = S.practice || {}; return !!(p.name || p.phone || p.email); }
 
 // ===== EXPORT =====
 const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1289,6 +1322,18 @@ function buildExportHtml(c) {
   </div>`
     : '';
 
+  // Praxis-Kontaktblock (nur wenn Praxisdaten hinterlegt sind): Rückfragen per WhatsApp
+  const pr = S.practice || {};
+  const wa = waLink(pr.phone);
+  const en = c.language === 'en';
+  const contactHtml = hasPractice()
+    ? `<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:16px;padding:18px 20px;margin-top:24px;text-align:center">
+    <div style="font-weight:700;font-size:15px;color:#134e4a">${en ? 'Questions about your exercises?' : 'Fragen zu den Übungen?'}</div>
+    ${wa ? `<a href="${wa}" style="display:inline-block;background:#25D366;color:#fff;font-weight:700;font-size:14px;text-decoration:none;border-radius:999px;padding:10px 22px;margin-top:10px">💬 ${en ? 'Message me on WhatsApp' : 'Schreib mir per WhatsApp'}</a>` : ''}
+    <div style="color:#0f766e;font-size:12.5px;margin-top:10px;line-height:1.6">${[pr.name, pr.phone, pr.email].filter(Boolean).map(esc).join(' · ')}</div>
+  </div>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="${c.language||'de'}">
 <head>
@@ -1305,6 +1350,7 @@ function buildExportHtml(c) {
   </div>
   ${goalHtml}
   ${rows}
+  ${contactHtml}
   <div style="text-align:center;color:#a1a1aa;font-size:12px;margin-top:28px">PhysioHome</div>
 </div>
 </body>
@@ -1359,6 +1405,17 @@ function buildPrintHtml(c) {
       <div style="font-size:14px;color:#134e4a;line-height:1.5;white-space:pre-wrap">${esc(c.goal)}</div></div>
     </div>`
     : '';
+  // Praxis-Kontaktblock (wie im HTML-Export, druckfreundlich kompakt)
+  const pr = S.practice || {};
+  const wa = waLink(pr.phone);
+  const en = c.language === 'en';
+  const contactHtml = hasPractice()
+    ? `<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:14px 16px;margin-top:20px;break-inside:avoid;page-break-inside:avoid">
+      <div style="font-weight:700;font-size:14px;color:#134e4a">${en ? 'Questions about your exercises?' : 'Fragen zu den Übungen?'}</div>
+      ${wa ? `<div style="margin-top:5px;font-size:13px"><a href="${wa}" style="color:#0f766e;font-weight:700;text-decoration:none">💬 ${en ? 'Message me on WhatsApp' : 'Schreib mir per WhatsApp'}</a></div>` : ''}
+      <div style="color:#0f766e;font-size:12px;margin-top:6px">${[pr.name, pr.phone, pr.email].filter(Boolean).map(esc).join(' · ')}</div>
+    </div>`
+    : '';
   return `<!DOCTYPE html><html lang="${c.language||'de'}"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.name)}</title>
 <style>
@@ -1377,6 +1434,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;
 <div class="hd"><h1>${esc(c.name)}</h1><div class="sub">${tl.exercises} · ${fmtDate(new Date().toISOString())}</div></div>
 ${goalHtml}
 ${rows}
+${contactHtml}
 <div class="ft">PhysioHome</div>
 <script>
 window.addEventListener('load',function(){
@@ -1844,6 +1902,37 @@ function buildPdfBlob(c) {
     y += cardH + GAP;
   });
 
+  // Praxis-Kontaktblock am Ende (antippbarer WhatsApp-Link, nur wenn Praxisdaten hinterlegt)
+  const pr = S.practice || {};
+  if (pr.name || pr.phone || pr.email) {
+    const en = c.language === 'en';
+    const wa = waLink(pr.phone);
+    const contact = [pr.name, pr.phone, pr.email].filter(Boolean).join('   ·   ');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    const contactLines = contact ? doc.splitTextToSize(contact, CW - 28) : [];
+    const boxH = 38 + (wa ? 17 : 0) + (contactLines.length ? 4 + contactLines.length * 12 : 0);
+    if (y + boxH + 6 > bottom) { doc.addPage(); y = M; }
+    y += 6;
+    doc.setFillColor(240, 253, 250); doc.setDrawColor(153, 246, 228); doc.setLineWidth(1);
+    doc.roundedRect(M, y, CW, boxH, 10, 10, 'FD');
+    let py = y + 24;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(19, 78, 74);
+    doc.text(en ? 'Questions about your exercises?' : 'Fragen zu den Übungen?', M + 14, py);
+    if (wa) {
+      py += 17;
+      doc.setFontSize(11); doc.setTextColor(13, 148, 136);
+      const label = en ? 'Message me on WhatsApp  ›' : 'Schreib mir einfach per WhatsApp  ›';
+      // Klickbarer Link; Fallback für jsPDF-Builds ohne textWithLink
+      if (doc.textWithLink) doc.textWithLink(label, M + 14, py, { url: wa });
+      else { doc.text(label, M + 14, py); doc.link(M + 14, py - 11, doc.getTextWidth(label), 14, { url: wa }); }
+    }
+    if (contactLines.length) {
+      py += 4;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(15, 118, 110);
+      contactLines.forEach(l => { py += 12; doc.text(l, M + 14, py); });
+    }
+  }
+
   return doc.output('blob');
 }
 
@@ -2049,6 +2138,7 @@ function renderSidebar() {
         <button class="btn btn-secondary btn-sm" id="btn-backup" style="flex:1;justify-content:center">${t('backupAll')}</button>
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;flex:1;justify-content:center">${t('restoreAll')}<input type="file" id="restore-inp" accept=".json" style="display:none"></label>
       </div>
+      <button class="btn btn-secondary btn-sm btn-full" id="btn-practice">${t('practiceBtn')}</button>
       <div class="side-storage" id="storage-info"></div>
     </div>
   </aside>`;
@@ -2404,6 +2494,30 @@ function showModal() {
         </div>
       </div>
     </div></div>`;
+  } else if (m.type === 'practice') {
+    // Praxisdaten: erscheinen als Kontaktblock (mit WhatsApp-Link) in PDF/HTML-Exporten
+    const p = S.practice || {};
+    html = `<div class="modal-overlay" id="moverlay"><div class="modal">
+      <div class="modal-title">🏥 ${t('practiceTitle')}</div>
+      <div class="modal-text">${t('practiceNote')}</div>
+      <div class="form-group">
+        <label class="form-label">${t('practiceName')}</label>
+        <input class="form-input" id="m-pr-name" type="text" placeholder="${t('practiceNamePh')}" value="${esc(p.name)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">${t('practicePhone')}</label>
+        <input class="form-input" id="m-pr-phone" type="tel" placeholder="${t('practicePhonePh')}" value="${esc(p.phone)}">
+        <div class="media-hint">${t('practicePhoneHint')}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">${t('practiceEmail')}</label>
+        <input class="form-input" id="m-pr-email" type="email" placeholder="${t('practiceEmailPh')}" value="${esc(p.email)}">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="m-cancel">${t('cancel')}</button>
+        <button class="btn btn-primary" id="m-ok">${t('save')}</button>
+      </div>
+    </div></div>`;
   } else if (m.type === 'confirm') {
     html = `<div class="modal-overlay" id="moverlay"><div class="modal">
       <div class="modal-title">⚠️ ${m.title}</div>
@@ -2477,6 +2591,7 @@ function showModal() {
             <div class="phone-list">
               ${sendPreviewCards(c)}
               <div class="phone-note">${cl.sendPreviewNote}</div>
+              ${hasPractice() ? `<div class="phone-note" style="margin-top:6px">💬 ${c?.language === 'en' ? 'Questions?' : 'Fragen?'} ${esc([S.practice.name, S.practice.phone].filter(Boolean).join(' · '))}</div>` : ''}
             </div>
           </div></div>
         </div>
@@ -2504,7 +2619,7 @@ function showModal() {
   const el = document.createElement('div');
   el.innerHTML = html;
   document.getElementById('app').appendChild(el.firstElementChild);
-  setTimeout(() => (document.getElementById('m-name') || document.getElementById('m-progname'))?.focus(), 40);
+  setTimeout(() => (document.getElementById('m-name') || document.getElementById('m-progname') || document.getElementById('m-pr-name'))?.focus(), 40);
   bindModal();
 }
 
@@ -2575,6 +2690,21 @@ function bindModal() {
       }};
       render();
     }));
+    return;
+  }
+  // Praxisdaten bearbeiten und speichern (Kontaktblock in den Exporten)
+  if (S.modal.type === 'practice') {
+    document.getElementById('moverlay')?.addEventListener('click', e => { if (e.target.id === 'moverlay') closeModal(); });
+    document.getElementById('m-ok')?.addEventListener('click', () => {
+      S.practice = {
+        name: (document.getElementById('m-pr-name')?.value || '').trim(),
+        phone: (document.getElementById('m-pr-phone')?.value || '').trim(),
+        email: (document.getElementById('m-pr-email')?.value || '').trim(),
+      };
+      const ok = save();
+      closeModal(); render();
+      toast(ok ? t('saved') : t('saveFailed'));
+    });
     return;
   }
   // Plan als Vorlage speichern: Name abfragen, Übungen als unabhängige Kopien ablegen.
@@ -2670,6 +2800,7 @@ function bind() {
           S.clients = parsed.clients;
           if (Array.isArray(parsed.library)) S.library = parsed.library;   // Bibliothek (ab Backup v3)
           if (Array.isArray(parsed.programs)) S.programs = parsed.programs; // Programm-Vorlagen (ab Backup v4)
+          if (parsed.practice) S.practice = parsed.practice;                // Praxisdaten (ab Backup v5)
           setLastBackup();   // es existiert nachweislich eine Sicherung
           const ok = save(); render(); toast(ok ? t('restoreOk') : t('saveFailed'));
         }};
@@ -2682,6 +2813,7 @@ function bind() {
 
   // Home
   document.getElementById('btn-new-client')?.addEventListener('click', () => { S.modal = {type:'new-client'}; render(); });
+  document.getElementById('btn-practice')?.addEventListener('click', () => { S.modal = {type:'practice'}; render(); });
   document.getElementById('btn-library')?.addEventListener('click', () => { S.view = 'library'; render(); });
   document.getElementById('search')?.addEventListener('input', e => {
     S.search = e.target.value;
