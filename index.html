@@ -342,7 +342,9 @@ body { font-family: 'Schibsted Grotesk', system-ui, -apple-system, BlinkMacSyste
 .plan-thumb { position: relative; }
 .thumb-more { position: absolute; right: 4px; bottom: 4px; background: rgba(28,30,29,.75); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
 /* Kamera: Serienaufnahme übernehmen + kurzer Blitz als Rückmeldung */
-.cam-done { background: var(--accent); color: #fff; border: none; border-radius: 999px; padding: 10px 18px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.cam-done { background: var(--accent); color: #fff; border: none; border-radius: 999px; padding: 13px 18px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.45); white-space: nowrap; justify-self: start; }
+.cam-shutter-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; width: 100%; max-width: 560px; }
+.cam-shutter-row .cam-shutter { grid-column: 2; }
 .cam-flash::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: .55; z-index: 3; pointer-events: none; }
 
 /* Storage warning */
@@ -844,6 +846,7 @@ const LANG = {
     clientNameLabel: 'Name / Kürzel *',
     clientNamePh: 'z.B. Max M. oder KL-01',
     clientLangLabel: 'Sprache des Klienten',
+    clientEmailLabel: 'E-Mail (optional)',
     createClient: 'Klient erstellen',
     editClient: 'Klient bearbeiten',
     editClientBtn: '✏️ Bearbeiten',
@@ -985,6 +988,7 @@ const LANG = {
     clientNameLabel: 'Name / Code *',
     clientNamePh: 'e.g. Max M. or CL-01',
     clientLangLabel: 'Client Language',
+    clientEmailLabel: 'Email (optional)',
     createClient: 'Create Client',
     editClient: 'Edit client',
     editClientBtn: '✏️ Edit',
@@ -1935,7 +1939,9 @@ async function doEmail(c) {
   if (blob) { downloadBlob(blob, pdfName(c)); c.lastExport = new Date().toISOString(); save(); }
   const subject = `${c.name} – ${t('emailSubject')}`;
   const body = t('emailBody');
-  window.location.href = `mailto:${encodeURIComponent(addr)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // "@" nicht mit-kodieren: manche Mail-Programme (Outlook/Windows Mail) lassen den
+  // Empfänger sonst leer.
+  window.location.href = `mailto:${encodeURIComponent(addr).replace(/%40/g, '@')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   if (blob) toast(t('emailPdfReady'));
 }
 
@@ -2194,7 +2200,9 @@ function renderExForm() {
         ${photos.length < MAX_PHOTOS ? `<label class="media-ph media-ph-add" title="${t('morePhotos')}">＋<input type="file" id="media-inp-more" accept="image/*" multiple style="display:none"></label>` : ''}
       </div>
       <div class="media-hint">${t('seriesHint')}</div>
-      ${IS_MOBILE ? '' : `<div class="media-actions" style="margin-top:10px"><button class="btn btn-secondary btn-sm" id="btn-open-cam">📷 ${S.lang==='de'?'Kamera':'Camera'}</button></div>`}`;
+      ${photos.length < MAX_PHOTOS ? `<div class="media-actions" style="margin-top:10px">${IS_MOBILE
+        ? `<label class="btn btn-secondary btn-sm" style="cursor:pointer">📷 ${S.lang==='de'?'Weiteres Foto aufnehmen':'Take another photo'}<input type="file" id="media-inp-more-cam" accept="image/*" capture="environment" style="display:none"></label>`
+        : `<button class="btn btn-secondary btn-sm" id="btn-open-cam">📷 ${S.lang==='de'?'Weiteres Foto aufnehmen':'Take another photo'}</button>`}</div>` : ''}`;
   } else {
     mediaHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         ${IS_MOBILE
@@ -2381,6 +2389,10 @@ function showModal() {
         </select>
       </div>
       <div class="form-group">
+        <label class="form-label">${t('clientEmailLabel')}</label>
+        <input class="form-input" id="m-email" type="email" placeholder="${t('emailPh')}" value="${esc(ed?.email)}">
+      </div>
+      <div class="form-group">
         <label class="form-label">${t('goalLabel')}</label>
         <textarea class="form-textarea" id="m-goal" placeholder="${t('goalPh')}" style="min-height:64px">${esc(ed?.goal)}</textarea>
       </div>
@@ -2510,6 +2522,11 @@ function bindModal() {
     document.getElementById('send-mail')?.addEventListener('click', () => doEmail(c));
     document.getElementById('send-pdf')?.addEventListener('click', () => doPdf(c));
     document.getElementById('send-videos')?.addEventListener('click', () => doVideos(c));
+    // getippte Adresse sofort beim Klienten merken (auch wenn ohne Senden geschlossen wird)
+    document.getElementById('email-to')?.addEventListener('change', e => {
+      const v = e.target.value.trim();
+      if (c && v !== (c.email || '')) { c.email = v; save(); }
+    });
     return;
   }
   // Bibliotheks-Drawer: eigene Interaktionen (kein m-ok-Button, daher vor der Prüfung unten)
@@ -2589,11 +2606,12 @@ function bindModal() {
       if (!name) { document.getElementById('m-name').classList.add('err'); return; }
       const lang = document.getElementById('m-lang').value;
       const goal = (document.getElementById('m-goal')?.value || '').trim();
+      const email = (document.getElementById('m-email')?.value || '').trim();
       if (S.modal.clientId) {                          // bestehenden Klienten bearbeiten
         const c = S.clients.find(x => x.id === S.modal.clientId);
-        if (c) { c.name = name; c.language = lang; c.goal = goal; }
+        if (c) { c.name = name; c.language = lang; c.goal = goal; c.email = email; }
       } else {                                         // neuen Klienten anlegen
-        S.clients.push({ id: uid(), name, language: lang, goal, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
+        S.clients.push({ id: uid(), name, language: lang, goal, email, exercises: [], createdAt: new Date().toISOString(), lastExport: null });
         S.clientId = S.clients.at(-1).id;
         S.view = 'home';
       }
@@ -2846,6 +2864,7 @@ function bind() {
   const onPickMedia = e => { if (e.target.files?.length) readMediaFiles(e.target.files); e.target.value = ''; };
   document.getElementById('media-inp')?.addEventListener('change', onPickMedia);
   document.getElementById('media-inp-more')?.addEventListener('change', onPickMedia);
+  document.getElementById('media-inp-more-cam')?.addEventListener('change', onPickMedia);
   document.getElementById('media-inp-cam')?.addEventListener('change', onPickMedia);
   document.getElementById('media-inp-vid')?.addEventListener('change', onPickMedia);
   document.getElementById('btn-open-cam')?.addEventListener('click', openCamera);
@@ -2894,7 +2913,6 @@ function openCamera() {
     <div class="cam-top">
       <button class="cam-icon" id="cam-close" title="${isDE?'Schließen (verwirft Fotos)':'Close (discards photos)'}">✕</button>
       <div id="cam-rec-status" class="cam-status"></div>
-      <button class="cam-done" id="cam-done" style="display:none"></button>
       <button class="cam-icon" id="cam-flip" title="${isDE?'Kamera wechseln':'Switch camera'}">🔄</button>
     </div>
     <div class="cam-bottom">
@@ -2902,7 +2920,11 @@ function openCamera() {
         <button class="cam-mode-btn active" id="mode-photo">${isDE?'Foto':'Photo'}</button>
         <button class="cam-mode-btn" id="mode-video">Video</button>
       </div>` : ''}
-      <button class="cam-shutter" id="cam-shutter" title="${isDE?'Aufnehmen':'Capture'}"></button>
+      <div class="cam-shutter-row">
+        <span></span>
+        <button class="cam-shutter" id="cam-shutter" title="${isDE?'Aufnehmen':'Capture'}"></button>
+        <button class="cam-done" id="cam-done" style="display:none"></button>
+      </div>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -2915,7 +2937,13 @@ function openCamera() {
     overlay.remove();
   }
 
-  document.getElementById('cam-close').addEventListener('click', stopStream);
+  document.getElementById('cam-close').addEventListener('click', () => {
+    // Versehentliches Wegwerfen der Fotoserie verhindern
+    if (shots.length && !window.confirm(isDE
+      ? `${shots.length} aufgenommene${shots.length > 1 ? '' : 's'} Foto${shots.length > 1 ? 's' : ''} verwerfen?`
+      : `Discard ${shots.length} captured photo${shots.length > 1 ? 's' : ''}?`)) return;
+    stopStream();
+  });
 
   // Serienaufnahme abschließen: alle Fotos übernehmen (erstes = Hauptbild)
   document.getElementById('cam-done').addEventListener('click', () => {
@@ -2948,7 +2976,7 @@ function openCamera() {
       recStatus.textContent = `${shots.length} ${isDE ? 'Foto' : 'photo'}${shots.length > 1 ? 's' : ''}`;
       const done = document.getElementById('cam-done');
       done.style.display = '';
-      done.textContent = `✓ ${isDE ? 'Übernehmen' : 'Use'} (${shots.length})`;
+      done.textContent = `✓ ${isDE ? 'Fertig' : 'Done'} (${shots.length})`;
     } else {
       if (!recording) {
         recordedChunks = [];
